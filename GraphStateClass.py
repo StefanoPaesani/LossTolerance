@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 
 ## import graph-state specific functions
 from lc_equivalence import check_LCequiv
+from StabStateClass import StabState
 
 
 ## CLASSES ##
@@ -61,6 +62,13 @@ class GraphState(object):
     ##
 
     ## REPRESENTATION ##
+
+    def as_stabstate(self):
+        """
+        Converts the graph state into a Stablizer state.
+        """
+        return StabState(self.stab_gens)
+
 
     def graph_vecstate(self):
         """
