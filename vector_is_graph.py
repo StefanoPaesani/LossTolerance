@@ -3,6 +3,7 @@ import numpy as np
 
 imaginary_part_cutoff = 10 ** (-14)
 
+## TODO: Make this more efficient, and include other states in the graph basis, using methods from the Griffiths notes.
 
 def check_if_neighbours(n, k, state, offset_phase=1, check_no_cmplx=True):
     """ A function that, if state_signs are the signs of the vector state of a graph state, determines whether qubits

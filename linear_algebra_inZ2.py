@@ -42,6 +42,17 @@ def row_echelon_inZ2(m):
     return REF_m, inverse_mat
 
 
+def find_kernel_basis_inZ2(m):
+    """ A basis for the Kernel of matrix M is found via row_echelon in the field F_2={0,1}
+    see e.g. https://en.wikipedia.org/wiki/Kernel_(linear_algebra)
+    """
+    n_rows0, n_cols0 = np.shape(m)
+    expanded_M = np.block([[m], [np.eye(n_cols0)]])
+    u, _ = row_echelon_inZ2(expanded_M.T)
+    kern_basis = [this_row[n_rows0:] for this_row in u if np.all(this_row[:n_rows0] == 0)]
+    return np.array(kern_basis)
+
+
 if __name__ == '__main__':
     import networkx as nx
 

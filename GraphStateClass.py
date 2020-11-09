@@ -58,6 +58,8 @@ class GraphState(object):
         """
         return nx.draw(self.graph, with_labels=with_labels, font_weight=font_weight)
 
+    ##
+
     ## REPRESENTATION ##
 
     def graph_vecstate(self):
@@ -102,6 +104,12 @@ class GraphState(object):
         """
         return check_LCequiv(self.graph, other.graph, return_all=return_all)
 
+    def adj_mat(self):
+        r"""
+        :return: The adjecency matrix of the graph state
+        """
+        return nx.adjacency_matrix(self.graph, nodelist=sorted(self.graph.nodes())).todense()
+
 
 ## STABILIZER FUNCTIONS ##
 
@@ -111,18 +119,20 @@ def stabilizer_generators_from_graph(graph):
 
     :param graph: The graph representing the state, where each node represents a qubit and edges are entangling gates
     :type graph: :class:`nx.Graph`
-    :returns: A :class:`qecc.PauliList` object representing the set of :math:`[K_1,...,K_n]` stabilizer generators
+    :returns: An iterator over the list of :math:`[K_1,...,K_n]` stabilizer generators
     """
     stab_gens = []
     nodes = list(graph.nodes())
     nqubits = len(nodes)
-    for node_ix in nodes:
-        stab_dict = {nodes.index(node_ix): 'X'}
-        for ngb_node_ix in graph.neighbors(node_ix):
-            stab_dict[nodes.index(ngb_node_ix)] = 'Z'
+    adjacencies = nx.adjacency_matrix(graph, nodelist=sorted(graph.nodes())).todense()
+    for node_ix in range(nqubits):
+        stab_dict = {node_ix: 'X'}
+        for check_node_ix in range(nqubits):
+            if adjacencies[node_ix, check_node_ix] == 1:
+                stab_dict[check_node_ix] = 'Z'
         this_stab = q.Pauli.from_sparse(stab_dict, nq=nqubits)
         stab_gens.append(this_stab)
-    return q.PauliList(stab_gens)
+    return stab_gens
 
 
 ## GRAPH INITIALIZATION FUNCTIONS ##
@@ -171,6 +181,10 @@ def gen_crazy_graph(nrows, nlayers):
 
 
 if __name__ == '__main__':
+    ## Additional useful functions and classes
+    from local_transformations import local_cliffords_on_stab_list
+    from StabStateClass import StabState
+
     ########### DEFINE GRAPHS TO USE
 
     #### Linear vs fully connected graphs - 3 qubits
@@ -184,9 +198,9 @@ if __name__ == '__main__':
     # G_2 = gen_fullyconnected_graph(nqb)
 
     #### Star vs fully connected graphs - 4 qubits
-    # nqb = 4
-    # G = gen_star_graph(nqb)
-    # G_2 = gen_fullyconnected_graph(nqb)
+    nqb = 4
+    G = gen_star_graph(nqb)
+    G_2 = gen_fullyconnected_graph(nqb)
 
     #### Star vs Star with relabeling - 4 qubits
     # nqb = 4
@@ -205,16 +219,19 @@ if __name__ == '__main__':
     # G_2 = nx.relabel_nodes(temp_G_2, {1: 2, 2: 1})
 
     #### Star vs Fully connected, large graphs - n qubits
-    nqb = 22
-    G = gen_fullyconnected_graph(nqb)
-    G_2 = gen_star_graph(nqb)
+    # nqb = 22
+    # G = gen_fullyconnected_graph(nqb)
+    # G_2 = gen_star_graph(nqb)
 
     gstate = GraphState(G)
     gstate_2 = GraphState(G_2)
 
     ### Obtain the stabilizer generators of the graph G
     print('Stabilizer generators of G:')
+    print(gstate.adj_mat())
     print(gstate.stab_gens)
+    print()
+    print(gstate_2.adj_mat())
     print(gstate_2.stab_gens)
 
     ### Checks the amount of time to calculate the state vector of the graph state (and prints it, if uncommented)
@@ -234,22 +251,48 @@ if __name__ == '__main__':
     print(unitaries)
     print('Time required to check LC equivalence:', end - start, 's')
 
-    ### Print the graphs associated to the states
-    plt.subplot(211)
-    gstate.image(with_labels=True)
-    plt.subplot(212)
-    gstate_2.image(with_labels=True)
-    plt.show()
+    ################ CHECK GRAPHS MAP INTO EACH OTHER UNDER LOCAL CLIFFORDS
+
+    if check_equiv:
+        loca_Cliff_transf = unitaries[0]
+        print()
+        print('Test equivalence under transformation:', loca_Cliff_transf)
+        starting_gens = gstate.stab_gens
+        print('Initial stabilizers:')
+        print(starting_gens)
+        update_gen = local_cliffords_on_stab_list(loca_Cliff_transf, starting_gens)
+        print('Transformed stabilizers:')
+        print(update_gen)
+
+        ## Put the generators of the transformed graph state in canonical form
+        G, adj_mat, clifford_transf, basis_change_mat = StabState(update_gen).as_graph()
+        graphstate_transf = GraphState(G)
+        update_gen_canonical = graphstate_transf.stab_gens
+        print('Transformed stabilizers in canonical form:')
+        print(update_gen_canonical)
+
+        targ_stabs = gstate_2.stab_gens
+        print('Found stabilizers match target stabilizers?', update_gen_canonical == targ_stabs)
+        print(targ_stabs)
+
+        ### Print the graphs associated to the states
+        plt.subplot(221)
+        gstate.image(with_labels=True)
+        plt.subplot(222)
+        gstate_2.image(with_labels=True)
+        plt.subplot(224)
+        graphstate_transf.image(with_labels=True)
+        plt.show()
 
 ################ OTHER TESTS
 
-    # nqb = 5
-    # G = gen_linear_graph(nqb)
-    # # G = gen_ring_graph(nqb)
-    #
-    # gstate = GraphState(G)
-    # print(gstate.graph_vecstate())
-    # print(gstate.stab_gens)
-    #
-    # gstate.image(with_labels=True)
-    # plt.show()
+# nqb = 5
+# G = gen_linear_graph(nqb)
+# # G = gen_ring_graph(nqb)
+#
+# gstate = GraphState(G)
+# print(gstate.graph_vecstate())
+# print(gstate.stab_gens)
+#
+# gstate.image(with_labels=True)
+# plt.show()

@@ -1,7 +1,6 @@
 import numpy as np
 from linear_algebra_inZ2 import row_echelon_inZ2
-from GraphStateClass import GraphState
-from StabStateClass import StabState
+import networkx as nx
 
 
 def stab_to_graph(stab_state):
@@ -11,8 +10,8 @@ def stab_to_graph(stab_state):
     :param stab_state: The stabilizer state to be converted into a graph state.
     :type stab_state: :class:`StabState`
     """
-    if not isinstance(stab_state, StabState):
-        raise ValueError("Input needs to be a StabState class.")
+    # if not isinstance(stab_state, StabState):
+    #     raise ValueError("Input needs to be a StabState class.")
 
     stab_gens = stab_state.stab_gens
 
@@ -54,17 +53,19 @@ def stab_to_graph(stab_state):
     basis_change_mat = (inv_mat @ inv_mat1) % 2
 
     # obtains the adjacency_matrix, possibly with 1s in the diagonal
-    adj_mat = (Z_mat1 @ inv_mat1) %2
+    adj_mat = (Z_mat1 @ inv_mat1) % 2
 
     for qbt_idx in range(num_qbts):
         if adj_mat[qbt_idx, qbt_idx] == 1:
             adj_mat[qbt_idx, qbt_idx] = 0
-            clifford_transf[qbt_idx] = 'S'+clifford_transf[qbt_idx]
+            if clifford_transf[qbt_idx] == 'I':
+                clifford_transf[qbt_idx] = 'S'
+            else:
+                clifford_transf[qbt_idx] = 'S'+clifford_transf[qbt_idx]
 
     G = nx.from_numpy_matrix(adj_mat)
-    graph_state = GraphState(G)
 
-    return graph_state, adj_mat, clifford_transf, basis_change_mat
+    return G, adj_mat, clifford_transf, basis_change_mat
 
 
 if __name__ == '__main__':
@@ -85,7 +86,8 @@ if __name__ == '__main__':
     gen_list = q.PauliList(stab_gens)
     stab_state = StabState(gen_list)
 
-    graph_state, adj_mat, clifford_transf, basis_change_mat = stab_to_graph(stab_state)
+    graph_equiv, adj_mat, clifford_transf, basis_change_mat = stab_to_graph(stab_state)
+    graph_state = GraphState(graph_equiv)
 
     print('Adjacency matrix of equivalent graph state:')
     print(adj_mat)
@@ -105,14 +107,14 @@ if __name__ == '__main__':
     # graph_targ.add_edges_from([(0, 1), (0, 2), (0, 3), (0, 4)])
 
     ######## graph for 5-qubit code
-    graph_targ = nx.Graph()
-    graph_targ.add_nodes_from([0, 1, 2, 3, 4])
-    graph_targ.add_edges_from([(0, 1), (1, 2), (2, 3), (3, 4), (4, 0)])
+    # graph_targ = nx.Graph()
+    # graph_targ.add_nodes_from([0, 1, 2, 3, 4])
+    # graph_targ.add_edges_from([(0, 1), (1, 2), (2, 3), (3, 4), (4, 0)])
 
     ######## graph for Shore code, from Griffiths notes
-    # graph_targ = nx.Graph()
-    # graph_targ.add_nodes_from([0, 1, 2, 3, 4, 5, 6, 7, 8])
-    # graph_targ.add_edges_from([(0, 1), (1, 2), (2, 0), (0,3 ),(0,4), (1,5), (1,6), (2,7),(2,8)])
+    graph_targ = nx.Graph()
+    graph_targ.add_nodes_from([0, 1, 2, 3, 4, 5, 6, 7, 8])
+    graph_targ.add_edges_from([(0, 1), (1, 2), (2, 0), (0, 3), (0, 4), (1, 5), (1, 6), (2, 7), (2, 8)])
 
 
 

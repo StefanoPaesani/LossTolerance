@@ -1,14 +1,15 @@
 import numpy as np
 from itertools import chain, combinations, product
+from linear_algebra_inZ2 import find_kernel_basis_inZ2
 import networkx as nx
 
 #### Binary forms of single-qubit Clifford, using the (Z|X) notation.
-# symClifford_to_gate = {(1, 0, 0, 1): 'I', (0, 1, 1, 0): 'H', (1, 1, 0, 1): 'S',
-#                        (0, 1, 1, 1): 'HS', (1, 1, 1, 0): 'SH', (1, 0, 1, 1): 'HSH'}
+symClifford_to_gate = {(1, 0, 0, 1): 'I', (0, 1, 1, 0): 'H', (1, 1, 0, 1): 'S',
+                       (0, 1, 1, 1): 'HS', (1, 1, 1, 0): 'SH', (1, 0, 1, 1): 'HSH'}
 
 #### Binary forms of single-qubit Clifford, using the (X|Z) notation.
-symClifford_to_gate = {(1, 0, 0, 1): 'I', (0, 1, 1, 0): 'H', (1, 0, 1, 1): 'S',
-                       (1, 1, 1, 0): 'HS', (0, 1, 1, 1): 'SH', (1, 1, 0, 1): 'HSH'}
+# symClifford_to_gate = {(1, 0, 0, 1): 'I', (0, 1, 1, 0): 'H', (1, 0, 1, 1): 'S',
+#                        (1, 1, 1, 0): 'HS', (0, 1, 1, 1): 'SH', (1, 1, 0, 1): 'HSH'}
 
 
 ##### MISCELANNEA FUNCTIONS
@@ -102,60 +103,6 @@ def get_Clifford_unitary(cliff_binvect, nqbs):
     return cliff_ops
 
 
-##### LINEAR ALGEBRA FUNCTIONS IN THE F_2 FIELD
-
-def row_echelon_in_binary(m):
-    """ Return Row Echelon Form (REF) of matrix A in the field F_2={0,1}.
-    The Gaussian elimination is performed iteratively.
-    """
-    # if matrix A has no columns or rows,
-    # it is already in REF, so we return itself
-    r, c = m.shape
-    if r == 0 or c == 0:
-        return m
-
-    # we search for non-zero element in the first column
-    for i in range(len(m)):
-        if m[i, 0] != 0:
-            break
-    else:
-        # if all elements in the first column is zero,
-        # we perform REF on matrix from second column
-        B = row_echelon_in_binary(m[:, 1:])
-        # and then add the first zero-column back
-        return np.hstack([m[:, :1], B])
-
-    # if non-zero element happens not in the first row,
-    # we switch rows
-    if i > 0:
-        ith_row = m[i].copy()
-        m[i] = m[0]
-        m[0] = ith_row
-
-    # we divide first row by first element in it. NOT REQUIRED IN BINARY FIELD
-    # A[0] = A[0] / A[0,0]
-    # we subtract all subsequent rows with first row (it has 1 now as first element)
-    # multiplied by the corresponding element in the first column
-    m[1:] = (m[1:] - m[0] * m[1:, 0:1]) % 2
-
-    # we perform REF on matrix from second row, from second column
-    B = row_echelon_in_binary(m[1:, 1:])
-
-    # we add first row and first (zero) column, and return
-    return np.vstack([m[:1], np.hstack([m[1:, :1], B])]) % 2
-
-
-def find_kernel_basis(m):
-    """ A basis for the Kernel of matrix M is found via row_echelon in the field F_2={0,1}
-    see e.g. https://en.wikipedia.org/wiki/Kernel_(linear_algebra)
-    """
-    n_rows0, n_cols0 = np.shape(m)
-    expanded_M = np.block([[m], [np.eye(n_cols0)]])
-    u = row_echelon_in_binary(expanded_M.T)
-    kern_basis = [this_row[n_rows0:] for this_row in u if np.all(this_row[:n_rows0] == 0)]
-    return np.array(kern_basis)
-
-
 ##### FINAL FUNCTION TO CHECK LC EQUIVALENCE OF TWO GRAPHS
 
 def check_LCequiv(graph1, graph2, return_all=True):
@@ -189,7 +136,7 @@ def check_LCequiv(graph1, graph2, return_all=True):
     # initialise linear system of binary equations
     getMat = get_VanDenNest_matrix(adj1, adj2)
     # solve equations in the F2 field
-    solution_basis = find_kernel_basis(getMat)
+    solution_basis = find_kernel_basis_inZ2(getMat)
     # check which solutions provide symplectic matrices, and calculate the associated unitaries.
     return check_symplectic_constraint(solution_basis, nqbs, return_all=return_all)
 
@@ -214,6 +161,7 @@ if __name__ == '__main__':
     print(results)
 
     import matplotlib.pyplot as plt
+
     plt.subplot(211)
     nx.draw(G1, with_labels=True)
     plt.subplot(212)
