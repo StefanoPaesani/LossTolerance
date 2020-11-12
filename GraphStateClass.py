@@ -50,11 +50,20 @@ class GraphState(object):
         return len(self.graph.nodes())
 
     ## PRINTING ##
-    def image(self, with_labels=True, font_weight='bold'):
+    def image(self, with_labels=True, font_weight='bold', position_nodes=None):
         """
         Produces a matplotlib image of the graph associated to the graph state.
         """
-        return nx.draw(self.graph, with_labels=with_labels, font_weight=font_weight)
+        pos_nodes = position_nodes
+        if pos_nodes is None:
+            # checks if all nodes have attribute "layer", and, if they do, plot the graph using multilayer_layout
+            if all(["layer" in this_node[1] for this_node in self.graph.nodes(data=True)]):
+                pos_nodes = nx.multipartite_layout(self.graph, subset_key="layer")
+            else:
+                pos_nodes = nx.spring_layout(self.graph)
+
+        nx.draw(self.graph, pos_nodes, with_labels=with_labels, font_weight=font_weight)
+
 
     ##
 
@@ -128,12 +137,12 @@ def stabilizer_generators_from_graph(graph):
     stab_gens = []
     nodes = list(graph.nodes())
     nqubits = len(nodes)
-    adjacencies = nx.adjacency_matrix(graph, nodelist=sorted(graph.nodes())).todense()
-    for node_ix in range(nqubits):
-        stab_dict = {node_ix: 'X'}
-        for check_node_ix in range(nqubits):
-            if adjacencies[node_ix, check_node_ix] == 1:
-                stab_dict[check_node_ix] = 'Z'
+
+    sorted_nodes = list(sorted(graph.nodes()))
+    for node_ix in sorted_nodes:
+        stab_dict = {sorted_nodes.index(node_ix): 'X'}
+        for ngb_node_ix in sorted(graph.neighbors(node_ix)):
+            stab_dict[sorted_nodes.index(ngb_node_ix)] = 'Z'
         this_stab = q.Pauli.from_sparse(stab_dict, nq=nqubits)
         stab_gens.append(this_stab)
     return stab_gens
@@ -159,9 +168,9 @@ if __name__ == '__main__':
     # G_2 = gen_fullyconnected_graph(nqb)
 
     #### Star vs fully connected graphs - 4 qubits
-    nqb = 4
-    G = gen_star_graph(nqb)
-    G_2 = gen_fullyconnected_graph(nqb)
+    # nqb = 4
+    # G = gen_star_graph(nqb)
+    # G_2 = gen_fullyconnected_graph(nqb)
 
     #### Star vs Star with relabeling - 4 qubits
     # nqb = 4
@@ -174,10 +183,10 @@ if __name__ == '__main__':
     # G_2 = gen_ring_graph(nqb)
 
     #### Linear vs standard ring + relabeling - 4 qubits
-    # nqb = 4
-    # G = gen_linear_graph(nqb)
-    # temp_G_2 = gen_ring_graph(nqb)
-    # G_2 = nx.relabel_nodes(temp_G_2, {1: 2, 2: 1})
+    nqb = 4
+    G = gen_linear_graph(nqb)
+    temp_G_2 = gen_ring_graph(nqb)
+    G_2 = nx.relabel_nodes(temp_G_2, {1: 2, 2: 1})
 
     #### Star vs Fully connected, large graphs - n qubits
     # nqb = 22

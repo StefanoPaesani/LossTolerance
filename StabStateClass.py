@@ -73,11 +73,11 @@ class StabState(object):
         return stab_to_graph(self)
 
     # def stab_vecstate(self):
-        # TODO The stabilizer_subspace function from QECC is really to slow to do this...takes already 10 seconds for
-        #  7 qubits. Need to find a better way to do this, possible using clifford circuits and Aaronson style stuff
-        #  (see comments in the analogue function in the GraphState class). IDEA: find local Cliffords to pass to graph
-        #  state, then find state for graph state, and finally apply local cliffords to pass back to the original state.
-        # return self.stab_gens.stabilizer_subspace()
+    # TODO The stabilizer_subspace function from QECC is really to slow to do this...takes already 10 seconds for
+    #  7 qubits. Need to find a better way to do this, possible using clifford circuits and Aaronson style stuff
+    #  (see comments in the analogue function in the GraphState class). IDEA: find local Cliffords to pass to graph
+    #  state, then find state for graph state, and finally apply local cliffords to pass back to the original state.
+    # return self.stab_gens.stabilizer_subspace()
 
     ######################
     ## LOCAL OPERATIONS ##
@@ -108,7 +108,6 @@ if __name__ == '__main__':
     stab_state.local_cliffords(loc_Cliff)
     print('Updated stabilizers:')
     print(stab_state)
-
 
     pauli_meas = "ZIZI"
     print('\nOperating local Pauli measurement:', pauli_meas)

@@ -43,7 +43,9 @@ def gen_fullyconnected_graph(nqubits):
 def gen_crazy_graph(nrows, nlayers):
     graph = nx.Graph()
     nodes_mat = np.arange(nrows * nlayers).reshape((nlayers, nrows))
-    graph.add_nodes_from(range(nrows * nlayers))
+    for layer_ix in range(nlayers):
+        for row_ix in range(nrows):
+            graph.add_node(layer_ix*nrows + row_ix, layer=layer_ix)
     for layer_ix in range(nlayers - 1):
         these_edges = product(nodes_mat[layer_ix], nodes_mat[layer_ix + 1])
         graph.add_edges_from(these_edges)
