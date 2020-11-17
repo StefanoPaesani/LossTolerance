@@ -71,6 +71,8 @@ def pauli_measurement_on_stab_list(pauli_measurement, stab_list, outcome=0):
     """
     Updates a list of stabilizers after a measurement is performed
     """
+    if not (outcome == 0 or outcome == 1):
+        raise ValueError("Measurement outcome value can be only 0 or 1.")
 
     if not isinstance(pauli_measurement, q.Pauli):
         pauli_meas = q.Pauli(pauli_measurement)
@@ -85,6 +87,7 @@ def pauli_measurement_on_stab_list(pauli_measurement, stab_list, outcome=0):
     for stab_ix, this_stab in enumerate(stab_list):
         if q.com(pauli_meas, this_stab) == 1:
             anticomm_pauli = this_stab
+            anticomm_pauli.ph = (anticomm_pauli.ph + 2*outcome) % 4
             new_pauli_list[stab_ix].op = pauli_meas.op
             new_pauli_list[stab_ix].ph = (pauli_meas.ph + 2*outcome) % 4
             break
@@ -95,3 +98,76 @@ def pauli_measurement_on_stab_list(pauli_measurement, stab_list, outcome=0):
             new_pauli_list[other_stabs_ix] = anticomm_pauli * this_stab
 
     return new_pauli_list
+
+
+def pauli_measurement_on_code(pauli_measurement, stab_gens_list, logical_ops_list, outcome=0):
+    """
+    Updates stabilizers and logical operators after a measurement is performed
+    """
+    if not (outcome == 0 or outcome == 1):
+        print(outcome)
+        raise ValueError("Measurement outcome value can be only 0 or 1.")
+
+    if not isinstance(pauli_measurement, q.Pauli):
+        pauli_meas = q.Pauli(pauli_measurement)
+    else:
+        pauli_meas = pauli_measurement
+
+    for check_stab in stab_gens_list:
+        if not isinstance(check_stab, q.Pauli):
+            raise ValueError("All input stabilizers need to be qecc.Pauli objects.")
+
+    for log_op_zs in logical_ops_list[0]:
+        if not isinstance(log_op_zs, q.Pauli):
+            raise ValueError("All logical Z operators need to be qecc.Pauli objects.")
+
+    for log_op_xs in logical_ops_list[1]:
+        if not isinstance(log_op_xs, q.Pauli):
+            raise ValueError("All logical X operators need to be qecc.Pauli objects.")
+
+
+
+    check_all_comm = True
+    new_stab_gens_list = copy(stab_gens_list)
+    for stab_ix, this_stab in enumerate(stab_gens_list):
+        if q.com(pauli_meas, this_stab) == 1:
+            check_all_comm = False
+            anticomm_pauli = this_stab
+            anticomm_pauli.ph = (anticomm_pauli.ph + 2*outcome) % 4
+            new_stab_gens_list[stab_ix].op = pauli_meas.op
+            new_stab_gens_list[stab_ix].ph = (pauli_meas.ph + 2*outcome) % 4
+            break
+
+    for other_stabs_ix in range(stab_ix, len(stab_gens_list)):
+        this_stab = stab_gens_list[other_stabs_ix]
+        if q.com(pauli_meas, this_stab) == 1:
+            new_stab_gens_list[other_stabs_ix] = anticomm_pauli * this_stab
+
+    new_Z_log_ops_list = copy(logical_ops_list[0])
+    new_X_log_ops_list = copy(logical_ops_list[1])
+    # if measurement anticommutes with some stabilizer generator, update logical operators
+    if not check_all_comm:
+        for logop_ix, this_logop in enumerate(logical_ops_list[0]):
+            if q.com(pauli_meas, this_logop) == 1:
+                new_Z_log_ops_list[logop_ix] = anticomm_pauli * this_logop
+        for logop_ix, this_logop in enumerate(logical_ops_list[1]):
+            if q.com(pauli_meas, this_logop) == 1:
+                new_X_log_ops_list[logop_ix] = anticomm_pauli * this_logop
+
+        return new_stab_gens_list, [new_Z_log_ops_list, new_X_log_ops_list]
+
+    # if measurement commutes with all stabilizer generators, check that it commutes with all logical operators (i.e.
+    # the measurement is a stabilizer), and if so return the same logical operators. If instead it anticommutes with
+    # some logical operator, it means we measured a logical operator, and thus we collapsed the whole logical state to
+    # an eigenstate of a logical operator. In this case both te stabilizer generators and logical operators would remain
+    # untouched, but here we also raise an error because teleportation can no longer be performed.
+    else:
+        for logop_ix, this_logop in enumerate(logical_ops_list[0]):
+            if (q.com(pauli_meas, logical_ops_list[0][logop_ix]) == 1) or \
+                    (q.com(pauli_meas, logical_ops_list[1][logop_ix]) == 1):
+                raise ValueError("Performed measurement in a logical operator: logical state is collapsed and "
+                                 "teleportation can no longer be performed.")
+        return new_stab_gens_list, [new_Z_log_ops_list, new_X_log_ops_list]
+
+
+

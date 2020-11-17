@@ -50,3 +50,16 @@ def gen_crazy_graph(nrows, nlayers):
         these_edges = product(nodes_mat[layer_ix], nodes_mat[layer_ix + 1])
         graph.add_edges_from(these_edges)
     return graph
+
+
+
+def gen_multiwire_graph(nrows, nlayers):
+    graph = nx.Graph()
+    nodes_mat = np.arange(nrows * nlayers).reshape((nlayers, nrows))
+    for layer_ix in range(nlayers):
+        for row_ix in range(nrows):
+            graph.add_node(layer_ix*nrows + row_ix, layer=layer_ix)
+    for layer_ix in range(nlayers - 1):
+        these_edges = zip(nodes_mat[layer_ix], nodes_mat[layer_ix + 1])
+        graph.add_edges_from(these_edges)
+    return graph
