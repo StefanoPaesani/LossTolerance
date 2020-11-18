@@ -2,8 +2,8 @@ import numpy as np
 
 import qecc as q
 
-from stabs_graph_equiv import stab_to_graph
-from local_transformations import local_cliffords_on_stab_list, pauli_measurement_on_stab_list
+from CodesFunctions.stabs_graph_equiv import stab_to_graph
+from CodesFunctions.local_transformations import local_cliffords_on_stab_list, pauli_measurement_on_stab_list
 
 
 class StabState(object):

@@ -1,6 +1,5 @@
 import numpy as np
-from linear_algebra_inZ2 import row_echelon_inZ2
-import networkx as nx
+from CodesFunctions.linear_algebra_inZ2 import row_echelon_inZ2
 
 
 def stab_to_graph(stab_state):
@@ -71,8 +70,8 @@ def stab_to_graph(stab_state):
 if __name__ == '__main__':
     import networkx as nx
     import matplotlib.pyplot as plt
-    from StabStateClass import StabState
-    from GraphStateClass import GraphState
+    from CodesFunctions.StabStateClass import StabState
+    from CodesFunctions.GraphStateClass import GraphState
     import qecc as q
 
     # stab_gens = ["XZII", "ZXZI", "IZXZ", "IIZX"]

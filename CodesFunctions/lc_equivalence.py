@@ -1,6 +1,6 @@
 import numpy as np
 from itertools import chain, combinations, product
-from linear_algebra_inZ2 import find_kernel_basis_inZ2
+from CodesFunctions.linear_algebra_inZ2 import find_kernel_basis_inZ2
 import networkx as nx
 
 #### Binary forms of single-qubit Clifford, using the (Z|X) notation.

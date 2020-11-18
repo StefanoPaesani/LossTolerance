@@ -12,8 +12,7 @@ import qecc as q
 import matplotlib.pyplot as plt
 
 ## import graph-state specific functions
-from lc_equivalence import check_LCequiv
-from StabStateClass import StabState
+from CodesFunctions.lc_equivalence import check_LCequiv
 
 
 ## CLASSES ##
@@ -150,10 +149,10 @@ def stabilizer_generators_from_graph(graph):
 
 if __name__ == '__main__':
     ## Additional useful functions and classes
-    from local_transformations import local_cliffords_on_stab_list
-    from StabStateClass import StabState
+    from CodesFunctions.local_transformations import local_cliffords_on_stab_list
+    from CodesFunctions.StabStateClass import StabState
     import time
-    from graphs import gen_linear_graph, gen_star_graph, gen_fullyconnected_graph, gen_ring_graph, gen_crazy_graph
+    from CodesFunctions.graphs import gen_linear_graph, gen_ring_graph
 
     ########### DEFINE GRAPHS TO USE
 

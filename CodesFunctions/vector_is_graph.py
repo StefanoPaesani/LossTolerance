@@ -181,7 +181,7 @@ if __name__ == '__main__':
     print(Amat)
 
     if test_result:
-        from GraphStateClass import GraphState
+        from CodesFunctions.GraphStateClass import GraphState
         import networkx as nx
         import matplotlib.pyplot as plt
 

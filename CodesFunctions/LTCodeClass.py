@@ -1,12 +1,10 @@
-from GraphStateClass import GraphState
 # from StabStateClass import StabState
-from local_transformations import pauli_measurement_on_code
+from CodesFunctions.local_transformations import pauli_measurement_on_code
 
 import qecc as q
 
 from copy import deepcopy
-import numpy as np
-from itertools import chain, product, combinations, combinations_with_replacement
+from itertools import chain, combinations_with_replacement
 from functools import reduce
 
 import time
@@ -685,13 +683,13 @@ def powerset_nonempty(iterable):
 
 
 if __name__ == '__main__':
-    from graphs import *
+    from CodesFunctions.graphs import *
     import matplotlib.pyplot as plt
     import networkx as nx
 
     ########## Crazy-graph encoding
-    nrows = 5
-    nlayers = 5
+    nrows = 4
+    nlayers = 4
     encode_graph = gen_crazy_graph(nrows, nlayers)
     # encode_graph = gen_multiwire_graph(nrows, nlayers)
     in_nodes = list(range(nrows))
@@ -725,7 +723,7 @@ if __name__ == '__main__':
 
     start_time = time.time()
     # qwe = mycode.full_search_valid_teleportation_meas(trivial_stab_test=False, exclude_input_ys=True)
-    qwe = mycode.SPalgorithm_valid_teleportation_meas(max_m_increase_fact=1.5, test_inouts=True,
+    qwe = mycode.SPalgorithm_valid_teleportation_meas(max_m_increase_fact=2, test_inouts=True,
                                                       exclude_input_ys=True, return_evolution=False)
     end_time = time.time()
     print()
