@@ -1,13 +1,13 @@
-# from StabStateClass import StabState
 from CodesFunctions.local_transformations import pauli_measurement_on_code
 
 import qecc as q
 
 from copy import deepcopy
-from itertools import chain, combinations_with_replacement
+from itertools import chain, combinations, combinations_with_replacement, product
 from functools import reduce
-
-import time
+import networkx as nx
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 ##############################
@@ -412,28 +412,14 @@ class LTCode(object):
             return False
 
     def full_search_valid_teleportation_meas(self, trivial_stab_test=True, return_logops=False, exclude_input_ys=True):
-        print("\n\nStart finding logical ops")
-        start_time = time.time()
+
         all_logops_z, all_logops_x = self.get_all_valid_logical_ops(trivial_stab_test=trivial_stab_test,
                                                                     exclude_input_ys=exclude_input_ys)
-        end_time = time.time()
-        print("Time spent searching all valid operators:", end_time - start_time)
 
-        # TODO: looking for all possible combinations is too brute force, there must be a faster way to do this
+        all_z_logops_combs = product(*all_logops_z)
+        all_x_logops_combs = product(*all_logops_x)
+        all_logops_combs = product(all_z_logops_combs, all_x_logops_combs)
 
-        # all_z_logops_combs = product(*all_logops_z)
-        # all_x_logops_combs = product(*all_logops_x)
-        # all_logops_combs = product(all_z_logops_combs, all_x_logops_combs)
-
-        all_z_logops_combs = list(product(*all_logops_z))
-        all_x_logops_combs = list(product(*all_logops_x))
-        print(len(all_z_logops_combs), 2 * len(all_z_logops_combs), len(all_x_logops_combs))
-        print("Next is a long one")
-        all_logops_combs = list(product(all_z_logops_combs, all_x_logops_combs))
-        print(len(all_z_logops_combs), len(all_x_logops_combs), len(all_logops_combs))
-
-        print("\nStart verifying teleportation conditions")
-        start_time = time.time()
         if return_logops:
             all_valid_tele_meas = [(y[1], y[2]) for y in
                                    (self.verify_teleportation_condition(logop_comb, ) for logop_comb in
@@ -444,10 +430,6 @@ class LTCode(object):
                                    (self.verify_teleportation_condition(logop_comb, ) for logop_comb in
                                     all_logops_combs)
                                    if y[0]]
-
-        end_time = time.time()
-        print("Time spent verifying teleportation conditions:", end_time - start_time)
-
         return list(set(all_valid_tele_meas))
 
     ##################################################
@@ -543,8 +525,8 @@ class LTCode(object):
                      self.res_inputs]
         min_m = max(all_min_m)
         max_m = min(int(min_m * max_m_increase_fact) + 1, self.nqubits)
+
         print("min m, max m:", min_m, max_m)
-        print()
 
         valid_Z_logops = [[] for i in range(self.num_logical_qbits)]
         valid_X_logops = [[] for i in range(self.num_logical_qbits)]
@@ -572,6 +554,9 @@ class LTCode(object):
     #######################################
     #### TELEPORTATION LOSS TOLERANCE  ####
     #######################################
+
+    def meas_weight(self,tele_meas):
+        return sum([1 if x != 'I' else 0 for x in tele_meas.op[:self.res_graph_num_nodes]])
 
     def allowed_lost_qubits(self, tele_meas):
         if not isinstance(tele_meas, q.Pauli):
@@ -684,8 +669,7 @@ def powerset_nonempty(iterable):
 
 if __name__ == '__main__':
     from CodesFunctions.graphs import *
-    import matplotlib.pyplot as plt
-    import networkx as nx
+    import time
 
     ########## Crazy-graph encoding
     nrows = 4
