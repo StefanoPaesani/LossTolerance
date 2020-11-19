@@ -8,6 +8,7 @@ from functools import reduce
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
+from collections.abc import Iterable
 
 
 ##############################
@@ -485,7 +486,6 @@ class LTCode(object):
         else:
             which_qubits_get_new_XZ = [(tuple(range(self.num_logical_qbits)), tuple(range(self.num_logical_qbits)))]
 
-
         new_valid_tele_meas = []
         for this_newold_comb in which_qubits_get_new_XZ:
             # exclude the combinations where there are no new X and Z operators, as these have already been all counted
@@ -543,7 +543,7 @@ class LTCode(object):
             if return_evolution:
                 teleport_meas.append((m, new_meas))
             else:
-                teleport_meas = list(set(teleport_meas+new_meas))
+                teleport_meas = list(set(teleport_meas + new_meas))
 
             for i in range(self.num_logical_qbits):
                 valid_Z_logops[i] = valid_Z_logops[i] + new_Z_logops[i]
@@ -555,7 +555,7 @@ class LTCode(object):
     #### TELEPORTATION LOSS TOLERANCE  ####
     #######################################
 
-    def meas_weight(self,tele_meas):
+    def meas_weight(self, tele_meas):
         return sum([1 if x != 'I' else 0 for x in tele_meas.op[:self.res_graph_num_nodes]])
 
     def allowed_lost_qubits(self, tele_meas):
@@ -564,10 +564,38 @@ class LTCode(object):
         meas_on_res_nodes = tele_meas.op[:self.res_graph_num_nodes]
         return tuple([pos for pos, char in enumerate(meas_on_res_nodes) if char == 'I'])
 
-    def full_allowed_heralded_loss_combinations(self, trivial_stab_test=True, exclude_input_ys=True):
-        full_valid_tele_meas = self.full_search_valid_teleportation_meas(trivial_stab_test=trivial_stab_test,
-                                                                         exclude_input_ys=exclude_input_ys)
-        return list(set(map(self.allowed_lost_qubits, full_valid_tele_meas)))
+    def Heralded_loss_teleport_prob_MC_estimation(self, teleport_meas, loss_probs, MC_trials=10000,
+                                                  use_indip_loss_combs=True):
+
+        all_loss_combs = list(set(map(self.allowed_lost_qubits, teleport_meas)))
+
+        if use_indip_loss_combs:
+            loss_combs_to_use = get_independent_loss_combs(all_loss_combs)
+        else:
+            loss_combs_to_use = all_loss_combs
+        if isinstance(loss_probs, (list, Iterable)):
+            print("list")
+            tele_prob_list = []
+            for this_loss_prob in loss_probs:
+                succ_loss_corr = 0
+                for trial_ix in range(MC_trials):
+                    lost_nodes = set([i for i in self.res_graph_nodes if np.random.rand() < this_loss_prob])
+                    for loss_comb in loss_combs_to_use:
+                        if lost_nodes.issubset(set(loss_comb)):
+                            succ_loss_corr = succ_loss_corr + 1
+                            break
+                tele_prob_list.append(succ_loss_corr / MC_trials)
+            return tele_prob_list
+        else:
+            print("int")
+            succ_loss_corr = 0
+            for trial_ix in range(MC_trials):
+                lost_nodes = set([i for i in self.res_graph_nodes if np.random.rand() < loss_probs])
+                for loss_comb in loss_combs_to_use:
+                    if lost_nodes.issubset(set(loss_comb)):
+                        succ_loss_corr = succ_loss_corr + 1
+                        break
+            return succ_loss_corr / MC_trials
 
 
 ##############################
@@ -616,6 +644,32 @@ def find_min_cardinality_connecting_nodes(input_nodes, output_nodes, adj_mat, ma
     m = int(iter_step / 2.)
 
     return m, neighbourhood
+
+
+def get_independent_loss_combs(all_loss_combs):
+    """
+    Function that returns all the maximally loss-tolerant combinations of lost nodes in all_loss_combs:
+    any of them is not a subset of any other combination, and all combinations in all_loss_combs are subsets of some
+    combination in the list returned.
+    """
+    ind_loss_combs = []
+    for ix, loss_comb in enumerate(all_loss_combs):
+        check_non_incl = True
+        # check if loss_comb is already a subset of a set in ind_loss_combs
+        for checked_loss_comb in ind_loss_combs:
+            if set(loss_comb).issubset(set(checked_loss_comb)):
+                check_non_incl = False
+                break
+        if check_non_incl:
+            # if not already in ind_loss_combs, check in the remaining combs in all_loss_combs
+            for checked_loss_comb in all_loss_combs[(ix + 1):]:
+                if set(loss_comb).issubset(set(checked_loss_comb)):
+                    check_non_incl = False
+                    break
+        # if not found anywhere, add loss_comb to ind_loss_combs
+        if not check_non_incl:
+            ind_loss_combs.append(loss_comb)
+    return ind_loss_combs
 
 
 def single_qubit_commute(pauli1, pauli2, qbt):
@@ -704,14 +758,13 @@ if __name__ == '__main__':
 
     # qwe = mycode.full_allowed_heralded_loss_combinations(trivial_stab_test=False, exclude_input_ys=True)
 
-
     start_time = time.time()
     # qwe = mycode.full_search_valid_teleportation_meas(trivial_stab_test=False, exclude_input_ys=True)
     qwe = mycode.SPalgorithm_valid_teleportation_meas(max_m_increase_fact=2, test_inouts=True,
                                                       exclude_input_ys=True, return_evolution=False)
     end_time = time.time()
     print()
-    print("Finished function, took:", end_time-start_time, "s")
+    print("Finished function, took:", end_time - start_time, "s")
     print(len(qwe))
     print(qwe)
 
@@ -721,7 +774,6 @@ if __name__ == '__main__':
     # print(encode_adj_mat)
     # asd = find_min_cardinality_connecting_nodes(in_nodes, mycode.output_nodes,
     #                                             graph_adj_mat, max_iterations=None)
-
 
     plt.figure()
     mycode.image(with_labels=True)
