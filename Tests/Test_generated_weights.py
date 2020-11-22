@@ -45,16 +45,18 @@ if __name__ == '__main__':
     # tele_meas_full_weights = list(map(mycode.meas_weight, tele_meas_full))
 
     start_time = time.time()
-    alpha = 3
-    tele_meas_SPalg = mycode.SPalgorithm_valid_teleportation_meas(max_m_increase_fact=alpha, test_inouts=True,
+    alpha = 2
+    tele_meas_SPalg = mycode.SPalgorithm_valid_teleportation_meas(max_m_increase=alpha, test_inouts=True,
                                                                   exclude_input_ys=True, return_evolution=False)
+    print(tele_meas_SPalg)
+
     end_time = time.time()
     print("Time passed for SP algorithm with alpha", alpha, ":", end_time-start_time, "s")
     tele_meas_SPalg_weights = list(map(mycode.meas_weight, tele_meas_SPalg))
 
     start_time = time.time()
-    alpha1 = 3.6
-    tele_meas_SPalg1 = mycode.SPalgorithm_valid_teleportation_meas(max_m_increase_fact=alpha1, test_inouts=True,
+    alpha1 = 3
+    tele_meas_SPalg1 = mycode.SPalgorithm_valid_teleportation_meas(max_m_increase=alpha1, test_inouts=True,
                                                                    exclude_input_ys=True, return_evolution=False)
     end_time = time.time()
     print("Time passed for SP algorithm with alpha", alpha, ":", end_time-start_time, "s")

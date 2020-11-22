@@ -45,12 +45,11 @@ def gen_crazy_graph(nrows, nlayers):
     nodes_mat = np.arange(nrows * nlayers).reshape((nlayers, nrows))
     for layer_ix in range(nlayers):
         for row_ix in range(nrows):
-            graph.add_node(layer_ix*nrows + row_ix, layer=layer_ix)
+            graph.add_node(layer_ix * nrows + row_ix, layer=layer_ix)
     for layer_ix in range(nlayers - 1):
         these_edges = product(nodes_mat[layer_ix], nodes_mat[layer_ix + 1])
         graph.add_edges_from(these_edges)
     return graph
-
 
 
 def gen_multiwire_graph(nrows, nlayers):
@@ -58,8 +57,74 @@ def gen_multiwire_graph(nrows, nlayers):
     nodes_mat = np.arange(nrows * nlayers).reshape((nlayers, nrows))
     for layer_ix in range(nlayers):
         for row_ix in range(nrows):
-            graph.add_node(layer_ix*nrows + row_ix, layer=layer_ix)
+            graph.add_node(layer_ix * nrows + row_ix, layer=layer_ix)
     for layer_ix in range(nlayers - 1):
         these_edges = zip(nodes_mat[layer_ix], nodes_mat[layer_ix + 1])
+        graph.add_edges_from(these_edges)
+    return graph
+
+def gen_square_lattice_graph(nrows, nlayers):
+    graph = nx.Graph()
+    nodes_mat = np.arange(nrows * nlayers).reshape((nlayers, nrows))
+    for layer_ix in range(nlayers):
+        for row_ix in range(nrows):
+            graph.add_node(layer_ix * nrows + row_ix, layer=layer_ix)
+    for layer_ix in range(nlayers - 1):
+        # Horizontal edges
+        these_edges = list(zip(nodes_mat[layer_ix], nodes_mat[layer_ix + 1]))
+        graph.add_edges_from(these_edges)
+    for layer_ix in range(nlayers):
+        # Vertical edges
+        these_edges = [tuple([nodes_mat[layer_ix, row_ix], nodes_mat[layer_ix, row_ix+1]])
+                       for row_ix in range(nrows - 1)]
+        graph.add_edges_from(these_edges)
+    return graph
+
+
+def gen_triangular_lattice_graph(nrows, nlayers):
+    graph = nx.Graph()
+    nodes_mat = np.arange(nrows * nlayers).reshape((nlayers, nrows))
+    for layer_ix in range(nlayers):
+        for row_ix in range(nrows):
+            graph.add_node(layer_ix * nrows + row_ix, layer=layer_ix)
+    for layer_ix in range(nlayers - 1):
+        # Horizontal edges
+        these_edges = list(zip(nodes_mat[layer_ix], nodes_mat[layer_ix + 1]))
+        graph.add_edges_from(these_edges)
+    for layer_ix in range(nlayers):
+        # Vertical edges
+        these_edges = [tuple([nodes_mat[layer_ix, row_ix], nodes_mat[layer_ix, row_ix+1]])
+                       for row_ix in range(nrows - 1)]
+        graph.add_edges_from(these_edges)
+    for layer_ix in range(nlayers-1):
+        # transversal edges
+        if (layer_ix % 2) == 0:
+            these_edges = [tuple([nodes_mat[layer_ix, row_ix], nodes_mat[layer_ix+1, row_ix-1]])
+                           for row_ix in range(1, nrows)]
+        else:
+            these_edges = [tuple([nodes_mat[layer_ix, row_ix], nodes_mat[layer_ix+1, row_ix+1]])
+                           for row_ix in range(nrows - 1)]
+        graph.add_edges_from(these_edges)
+    return graph
+
+
+def gen_hexagonal_lattice_graph(nrows, nlayers):
+    graph = nx.Graph()
+    nodes_mat = np.arange(nrows * nlayers).reshape((nlayers, nrows))
+    for layer_ix in range(nlayers):
+        for row_ix in range(nrows):
+            graph.add_node(layer_ix * nrows + row_ix, layer=layer_ix)
+    for layer_ix in range(nlayers - 1):
+        # Horizontal edges
+        these_edges = list(zip(nodes_mat[layer_ix], nodes_mat[layer_ix + 1]))
+        graph.add_edges_from(these_edges)
+    for layer_ix in range(nlayers):
+        # Vertical edges
+        if (layer_ix % 2) == 0:
+            these_edges = [tuple([nodes_mat[layer_ix, 2*row_ix], nodes_mat[layer_ix, 2*row_ix + 1]])
+                           for row_ix in range(int(nrows/2))]
+        else:
+            these_edges = [tuple([nodes_mat[layer_ix, 2*row_ix+1], nodes_mat[layer_ix, 2*row_ix + 2]])
+                           for row_ix in range(int((nrows-1)/2))]
         graph.add_edges_from(these_edges)
     return graph

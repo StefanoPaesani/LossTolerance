@@ -52,18 +52,34 @@ if __name__ == '__main__':
     ### Monte-Carlo Loss-Tolerance Estimation ###
     #############################################
 
-    loss_prob = 0.5
-    num_MC_trials = 1000
+    loss_prob = 0.2
+    num_MC_trials = 100
 
-    teleport_succ_prob = mycode.Heralded_loss_teleport_prob_MC_estimation(tele_meas_SPalg, loss_prob,
-                                                                          MC_trials=num_MC_trials,
-                                                                          use_indip_loss_combs=True)
-    print("Heralded loss teleport succ prob:", teleport_succ_prob)
+    weight_fact = 4
+    max_tree_depth = 0
 
-    loss_prob_list = np.linspace(0, 1, 50)
-    tele_succ_prob_list = mycode.Heralded_loss_teleport_prob_MC_estimation(tele_meas_SPalg, loss_prob_list,
-                                                                           MC_trials=num_MC_trials,
-                                                                           use_indip_loss_combs=True)
+    print("Starting unheralded loss tolerance probability calculation - single loss values")
+    start_time = time.time()
+    teleport_succ_prob = mycode.Unheralded_loss_teleport_prob_MC_estimation(tele_meas_SPalg, loss_prob,
+                                                                            follow_curr_best=False,
+                                                                            weight_fact=weight_fact,
+                                                                            max_tree_depth=max_tree_depth,
+                                                                            MC_trials=num_MC_trials)
+    end_time = time.time()
+    print("Completed in:", end_time - start_time)
+    print("Unheralded loss teleport succ prob:", teleport_succ_prob)
+
+    print("Starting unheralded loss tolerance probability calculation - scans")
+    start_time = time.time()
+
+    loss_prob_list = np.linspace(0, 1, 10)
+    tele_succ_prob_list = mycode.Unheralded_loss_teleport_prob_MC_estimation(tele_meas_SPalg, loss_prob_list,
+                                                                             follow_curr_best=False,
+                                                                             weight_fact=weight_fact,
+                                                                             max_tree_depth=max_tree_depth,
+                                                                             MC_trials=num_MC_trials)
+    end_time = time.time()
+    print("Completed in:", end_time - start_time)
 
     plt.figure()
     plt.plot(loss_prob_list, tele_succ_prob_list)

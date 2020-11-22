@@ -10,6 +10,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections.abc import Iterable
 
+PauliOps = ['I', 'X', 'Y', 'Z']
+
 
 ##############################
 ###### CLASS DEFINITION ######
@@ -422,12 +424,12 @@ class LTCode(object):
         all_logops_combs = product(all_z_logops_combs, all_x_logops_combs)
 
         if return_logops:
-            all_valid_tele_meas = [(y[1], y[2]) for y in
+            all_valid_tele_meas = [(y[1].op, y[2]) for y in
                                    (self.verify_teleportation_condition(logop_comb, ) for logop_comb in
                                     all_logops_combs)
                                    if y[0]]
         else:
-            all_valid_tele_meas = [y[1] for y in
+            all_valid_tele_meas = [y[1].op for y in
                                    (self.verify_teleportation_condition(logop_comb, ) for logop_comb in
                                     all_logops_combs)
                                    if y[0]]
@@ -508,7 +510,7 @@ class LTCode(object):
                 # all_logops_combs = list(product(z_logops_combs, x_logops_combs))
                 # print(z_logops_combs, x_logops_combs, all_logops_combs)
 
-                new_valid_tele_meas = new_valid_tele_meas + [y[1] for y in
+                new_valid_tele_meas = new_valid_tele_meas + [y[1].op for y in
                                                              (self.verify_teleportation_condition(comb) for comb in
                                                               all_logops_combs)
                                                              if y[0]]
@@ -516,7 +518,7 @@ class LTCode(object):
 
         return list(set(new_valid_tele_meas))
 
-    def SPalgorithm_valid_teleportation_meas(self, max_m_increase_fact=2., test_inouts=True, exclude_input_ys=True,
+    def SPalgorithm_valid_teleportation_meas(self, max_m_increase=1., test_inouts=True, exclude_input_ys=True,
                                              return_evolution=False):
 
         adj_mat = nx.adjacency_matrix(self.code_graph, nodelist=sorted(self.code_graph.nodes())).todense()
@@ -524,22 +526,27 @@ class LTCode(object):
                                                            max_iterations=None)[0] for this_input_set in
                      self.res_inputs]
         min_m = max(all_min_m)
-        max_m = min(int(min_m * max_m_increase_fact) + 1, self.nqubits)
-
-        print("min m, max m:", min_m, max_m)
+        max_m = self.nqubits
 
         valid_Z_logops = [[] for i in range(self.num_logical_qbits)]
         valid_X_logops = [[] for i in range(self.num_logical_qbits)]
 
         teleport_meas = []
 
-        for m in range(min_m, max_m):
-            # print("m:",m,"; valid Z, X:",  valid_Z_logops, valid_X_logops)
-            # print("valid tele meas:", teleport_meas)
-            # print()
+        m = min_m
+        end_m = max_m
+        check_notfound_combs = True
+        while m < end_m:
             new_Z_logops, new_X_logops = self.find_new_logops_for_node_cardinality(m, adj_mat, test_inouts=test_inouts,
                                                                                    exclude_input_ys=exclude_input_ys)
             new_meas = self.find_new_teleportation_meas(new_Z_logops, new_X_logops, valid_Z_logops, valid_X_logops)
+
+            # if list is nonempty, set
+            if len(new_meas) > 0 and check_notfound_combs:
+                check_notfound_combs = False
+                end_m = m + max_m_increase
+                print("Found valid measures at m=", m, "; Continuing up to end_m=", end_m)
+
             if return_evolution:
                 teleport_meas.append((m, new_meas))
             else:
@@ -549,19 +556,21 @@ class LTCode(object):
                 valid_Z_logops[i] = valid_Z_logops[i] + new_Z_logops[i]
                 valid_X_logops[i] = valid_X_logops[i] + new_X_logops[i]
 
+            m = m + 1
+
         return teleport_meas
 
-    #######################################
-    #### TELEPORTATION LOSS TOLERANCE  ####
-    #######################################
+    ##################################################
+    #### TELEPORTATION - HERALDED LOSS TOLERANCE  ####
+    ##################################################
 
     def meas_weight(self, tele_meas):
-        return sum([1 if x != 'I' else 0 for x in tele_meas.op[:self.res_graph_num_nodes]])
+        return len(tele_meas) - tele_meas[:self.res_graph_num_nodes].count('I')
 
     def allowed_lost_qubits(self, tele_meas):
-        if not isinstance(tele_meas, q.Pauli):
-            raise ValueError("Teleportation measurement needs to be a qecc.Pauli object")
-        meas_on_res_nodes = tele_meas.op[:self.res_graph_num_nodes]
+        if not isinstance(tele_meas, str):
+            raise ValueError("Teleportation measurement needs to be str, like 'IZIZZXYXZ'")
+        meas_on_res_nodes = tele_meas[:self.res_graph_num_nodes]
         return tuple([pos for pos, char in enumerate(meas_on_res_nodes) if char == 'I'])
 
     def Heralded_loss_teleport_prob_MC_estimation(self, teleport_meas, loss_probs, MC_trials=10000,
@@ -574,7 +583,6 @@ class LTCode(object):
         else:
             loss_combs_to_use = all_loss_combs
         if isinstance(loss_probs, (list, Iterable)):
-            print("list")
             tele_prob_list = []
             for this_loss_prob in loss_probs:
                 succ_loss_corr = 0
@@ -587,7 +595,6 @@ class LTCode(object):
                 tele_prob_list.append(succ_loss_corr / MC_trials)
             return tele_prob_list
         else:
-            print("int")
             succ_loss_corr = 0
             for trial_ix in range(MC_trials):
                 lost_nodes = set([i for i in self.res_graph_nodes if np.random.rand() < loss_probs])
@@ -595,6 +602,159 @@ class LTCode(object):
                     if lost_nodes.issubset(set(loss_comb)):
                         succ_loss_corr = succ_loss_corr + 1
                         break
+            return succ_loss_corr / MC_trials
+
+    ####################################################
+    #### TELEPORTATION - UNHERALDED LOSS TOLERANCE  ####
+    ####################################################
+
+    @staticmethod
+    def conditional_meas_sublist(meas_list, cond_qubit_meas):
+        return [meas[1:] for meas in meas_list if meas[0] == cond_qubit_meas]
+
+    def depthzero_best_meas(self, meas_list, weight_fact, loss_prob):
+        """
+        This is the algorithm for choosing the measurement strategy with unheralded losses from Morley-Short's paper,
+        where no Bayesian optimization is performed. A factor weight_fact is also inserted to chose how to pick the
+        measurement dependening on the measurement weights: if weight_fact=0 we get the 'most-common' measurement
+        strategy, if weight_fact>>1 we get the 'max-tolerance' strategy, values in between are tradeoffs between
+        these situations.
+        """
+        ops_weighted_counts = [0, 0, 0, 0]
+        for meas in meas_list:
+            op_ix = PauliOps.index(meas[0])
+            meas_weight = self.meas_weight(meas)
+            if meas_weight == 0:
+                return 'I', 1
+            ops_weighted_counts[op_ix] = ops_weighted_counts[op_ix] + ((1 / meas_weight) ** weight_fact)
+        best_op = PauliOps[ops_weighted_counts.index(max(ops_weighted_counts))]
+
+        if best_op == 'I':
+            # print('SMS algo returning', best_op, 1)
+            return best_op, 1
+        else:
+            # print('SMS algo returning', best_op, 1-loss_prob)
+            return best_op, 1-loss_prob
+
+
+    def get_UnheraldLT_opt_meas(self, meas_list, loss_prob, weight_fact=4, tree_depth=0, max_tree_depth=0):
+        """
+        Function to get the best Pauli measurement strategy, based on on a given
+        """
+        # if there are no measurements left, return empty string and 0 probability.
+        # print('Starting test with tree_depth', tree_depth)
+        if len(meas_list) == 0:
+            # print('NO MEASUREMENT TO USE')
+            return '', 0
+        # If there is only a last qubit left, or if we are at the max depth of the decision tree, do standard strategy
+        # to determine the measurement for this single qubit.
+        elif (len(meas_list[0]) == 1) or (tree_depth == max_tree_depth):
+            # print('DOING SMS: Reached last qubit or max_tree_depth:', meas_list[0], tree_depth)
+            return self.depthzero_best_meas(meas_list, weight_fact, loss_prob)
+        # otherwise, adopt more general strategy
+        else:
+            meas_strategies = [self.get_UnheraldLT_opt_meas(self.conditional_meas_sublist(meas_list, single_meas),
+                                                            loss_prob, weight_fact=weight_fact,
+                                                            tree_depth=(tree_depth + 1), max_tree_depth=max_tree_depth)
+                               for single_meas in PauliOps]
+            # print('meas_strategies:', meas_strategies)
+            strat_prob = [x[1] for x in meas_strategies]
+            best_prob = max(strat_prob)
+            best_prob_ix = strat_prob.index(best_prob)
+            best_strat = meas_strategies[best_prob_ix][0]
+            best_meas = PauliOps[best_prob_ix]
+            # print('choosing strat: ', best_strat)
+
+            if best_meas == 'I':
+                return best_meas+best_strat, best_prob
+            else:
+                return best_meas+best_strat, best_prob * (1-loss_prob)
+
+    def Unheralded_loss_teleport_single_MC_trial(self, teleport_meas, loss_prob, follow_curr_best=False,
+                                                 weight_fact=4, max_tree_depth=0):
+
+        current_meas_list = [meas[:self.res_graph_num_nodes] for meas in teleport_meas]
+        current_best_strategy = ''
+        check_measured = True
+        for this_node in list(self.res_graph_nodes):
+            # print("\nNEW START: starting node", this_node, 'with current strat:', current_best_strategy, '\nand current meas_list',current_meas_list)
+            # print('Current loss_prob', loss_prob)
+            # Check if there are still some possible measurement strategies left. If not, we cannot perform
+            # teleportation and 0 is returned.
+            if not current_meas_list:
+                return 0
+
+
+            # Decide the best measurement to do
+            if follow_curr_best and (len(current_best_strategy) > 0):
+                tried_meas = current_best_strategy[0]
+            else:
+                current_best_strategy, temp_prob = self.get_UnheraldLT_opt_meas(current_meas_list, loss_prob,
+                                                                                weight_fact=weight_fact,
+                                                                                max_tree_depth=max_tree_depth)
+                # Check if current_best_strategy exists. If not, we cannot perform teleportation and 0 is returned.
+                # print('Obtained best strategy:', current_best_strategy, temp_prob)
+                if not current_best_strategy:
+                    return 0
+                else:
+                    tried_meas = current_best_strategy[0]
+                    # print('Measurement on this qubit:', tried_meas)
+
+            # determine if a qubit is lost with probability loss_prob
+            if np.random.rand() < loss_prob:
+                is_lost = True
+                # print('Photon is LOST')
+            else:
+                is_lost = False
+                # print('Photon is ALIVE!!')
+
+            if is_lost and (tried_meas != 'I'):
+                # print('MEASUREMENT NOT PERFORMED!!')
+                check_measured = False
+                # update measurement list
+                current_meas_list = self.conditional_meas_sublist(current_meas_list, 'I')
+                # update current best measurement strategy
+                current_best_strategy = ''
+            else:
+                # print('MEASUREMENT ACHIEVED!!')
+                check_measured = True
+                # update measurement list
+                current_meas_list = self.conditional_meas_sublist(current_meas_list, tried_meas)
+                # update current best measurement strategy
+                current_best_strategy = current_best_strategy[1:]
+
+        # if we manage to conclude the "for" cycle over all nodes, we managed to get a strategy for succesfull
+        # teleportation, and we return 1.
+        if check_measured:
+            # print('\n\nTELEPORTATION DONE!')
+            return 1
+        else:
+            return 0
+
+    def Unheralded_loss_teleport_prob_MC_estimation(self, meas_list, loss_probs, weight_fact=4,
+                                                    follow_curr_best=False, max_tree_depth=0,
+                                                    MC_trials=10000):
+
+        if isinstance(loss_probs, (list, Iterable)):
+            tele_prob_list = []
+            for this_loss_prob in loss_probs:
+                succ_loss_corr = 0
+                for trial_ix in range(MC_trials):
+                    succ_loss_corr = succ_loss_corr \
+                                     + self.Unheralded_loss_teleport_single_MC_trial(meas_list, this_loss_prob,
+                                                                                     follow_curr_best=follow_curr_best,
+                                                                                     weight_fact=weight_fact,
+                                                                                     max_tree_depth=max_tree_depth)
+                tele_prob_list.append(succ_loss_corr / MC_trials)
+            return tele_prob_list
+        else:
+            succ_loss_corr = 0
+            for trial_ix in range(MC_trials):
+                succ_loss_corr = succ_loss_corr \
+                                 + self.Unheralded_loss_teleport_single_MC_trial(meas_list, loss_probs,
+                                                                                 follow_curr_best=follow_curr_best,
+                                                                                 weight_fact=weight_fact,
+                                                                                 max_tree_depth=max_tree_depth)
             return succ_loss_corr / MC_trials
 
 
