@@ -7,10 +7,10 @@ if __name__ == '__main__':
     ########## Crazy-graph encoding
     nrows = 4
     nlayers = 4
-    # encode_graph = gen_crazy_graph(nrows, nlayers)
+    encode_graph = gen_crazy_graph(nrows, nlayers)
     # encode_graph = gen_square_lattice_graph(nrows, nlayers)
     # encode_graph = gen_triangular_lattice_graph(nrows, nlayers)
-    encode_graph = gen_hexagonal_lattice_graph(nrows, nlayers)
+    # encode_graph = gen_hexagonal_lattice_graph(nrows, nlayers)
     # encode_graph = gen_multiwire_graph(nrows, nlayers)
     in_nodes = list(range(nrows))
     out_nodes = list(range((nlayers - 1) * nrows, nrows * nlayers))
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     mycode = LTCode(encode_graph, in_nodes, out_nodes)
 
     start_time = time.time()
-    alpha = 2
+    alpha = 1
     tele_meas_SPalg = mycode.SPalgorithm_valid_teleportation_meas(max_m_increase=alpha, test_inouts=True,
                                                                   exclude_input_ys=True, return_evolution=False)
     end_time = time.time()

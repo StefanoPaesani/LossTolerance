@@ -8,8 +8,8 @@ if __name__ == '__main__':
     #####     INITIALISATION     #####
     ##################################
     ##### Define graph dimensions & calculation parameters
-    nrows = 4
-    nlayers = 4
+    nrows = 3
+    nlayers = 3
 
     alpha = 3
 
@@ -29,17 +29,17 @@ if __name__ == '__main__':
     # encode_graph = gen_crazy_graph(nrows, nlayers)
     # encode_graph = gen_square_lattice_graph(nrows, nlayers)
     # encode_graph = gen_triangular_lattice_graph(nrows, nlayers)
-    encode_graph = gen_hexagonal_lattice_graph(nrows, nlayers)
+    # encode_graph = gen_hexagonal_lattice_graph(nrows, nlayers)
     # encode_graph = gen_multiwire_graph(nrows, nlayers)
 
-    in_nodes = list(range(nrows))
-    out_nodes = list(range((nlayers - 1) * nrows, nrows * nlayers))
+    # in_nodes = list(range(nrows))
+    # out_nodes = list(range((nlayers - 1) * nrows, nrows * nlayers))
 
     ########## Fully-connected graph econding
-    # nqbts = nrows * nlayers
-    # encode_graph = gen_fullyconnected_graph(nqbts)
-    # in_nodes = list(range(int(nqbts / 2)))
-    # out_nodes = list(range(int(nqbts / 2), nqbts))
+    nqbts = nrows * nlayers
+    encode_graph = gen_fullyconnected_graph(nqbts)
+    in_nodes = list(range(int(nqbts / 2)))
+    out_nodes = list(range(int(nqbts / 2), nqbts))
 
 
     ##################

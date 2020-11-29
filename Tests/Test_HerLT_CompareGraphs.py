@@ -11,10 +11,10 @@ if __name__ == '__main__':
     nrows = 4
     nlayers = 4
 
-    alpha = 0
+    alpha = 2
 
     num_MC_trials = 1000
-    loss_prob_list = np.linspace(0, 1, 50)
+    loss_prob_list = np.linspace(0, 1, 30)
 
     ##### initialise lists
 
@@ -59,6 +59,18 @@ if __name__ == '__main__':
     graph_label = 'Crazy Graph'
 
     graph_codes.append(LTCode(encode_graph, in_nodes, out_nodes))
+    labels.append(graph_label)
+
+    ########## Crazy-graph encoding - Only 1 column
+    encode_graph = gen_crazy_graph(nlayers*nrows, 1)
+    in_nodes = list(range(nlayers*nrows))
+    out_nodes = list(range(nlayers*nrows))
+    graph_label = 'Crazy Graph - 1Col'
+
+    graph_codes.append(LTCode(encode_graph, in_nodes, out_nodes))
+    plt.figure()
+    graph_codes[-1].image(with_labels=True)
+    plt.show()
     labels.append(graph_label)
 
     ########## Fully-connected-graph encoding
