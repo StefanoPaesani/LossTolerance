@@ -28,20 +28,23 @@ class LTCode(object):
     """
 
     def __init__(self, encoding_graph, input_vertices, output_vertices):
-        if len(input_vertices) == 0 or len(output_vertices) == 0:
-            raise ValueError("At least one qubit and one input/output mode associated to it are needed")
+        if len(input_vertices) == 0:
+            raise ValueError("At least one qubit and one input mode associated to it are needed")
 
         if isinstance(input_vertices[0], int):
             in_vtx = [input_vertices]
         else:
             in_vtx = input_vertices
 
-        if isinstance(output_vertices[0], int):
-            out_vtx = [output_vertices]
+        if len(output_vertices) > 0:
+            if isinstance(output_vertices[0], int):
+                out_vtx = [output_vertices]
+            else:
+                out_vtx = output_vertices
         else:
             out_vtx = output_vertices
 
-        if len(in_vtx) != len(out_vtx):
+        if (len(out_vtx) > 0) and (len(in_vtx) != len(out_vtx)):
             raise ValueError("Number of input qubits needs to be the same as number of output qubits")
         self.num_logical_qbits = len(in_vtx)
 
@@ -73,7 +76,7 @@ class LTCode(object):
         self.res_graph_nodes = encoding_graph.nodes()
         self.res_graph_edges = encoding_graph.edges()
         self.res_graph_num_nodes = len(self.res_graph_nodes)
-        self.nqubits = self.res_graph_num_nodes + 2 * self.num_logical_qbits
+        self.nqubits = self.res_graph_num_nodes + len(in_vtx) + len(out_vtx)
         # TODO: maybe this check can be avoided, but for now let's keep this contraint on the graph definition
         if list(self.res_graph_nodes) != list(range(self.res_graph_num_nodes)):
             raise ValueError("The nodes of the graph must be labelled as [0,1,2,...,n-1]")
@@ -103,18 +106,19 @@ class LTCode(object):
 
         ### add output nodes and edges
         self.output_nodes = list(
-            range(self.res_graph_num_nodes + self.num_logical_qbits, self.res_graph_num_nodes +
-                  2 * self.num_logical_qbits)
+            range(self.res_graph_num_nodes + len(self.res_outputs), self.res_graph_num_nodes +
+                  2 * len(self.res_outputs))
         )
         out_edges = []
-        for out_node_ix, this_node in enumerate(self.output_nodes):
-            if check_layers_def:
-                total_graph.add_node(this_node, layer=out_nodes_layer)
-            else:
-                total_graph.add_node(this_node)
-            these_edges = list(product([this_node], out_vtx[out_node_ix]))
-            total_graph.add_edges_from(these_edges)
-            out_edges.append(these_edges)
+        if len(output_vertices) > 0:
+            for out_node_ix, this_node in enumerate(self.output_nodes):
+                if check_layers_def:
+                    total_graph.add_node(this_node, layer=out_nodes_layer)
+                else:
+                    total_graph.add_node(this_node)
+                these_edges = list(product([this_node], out_vtx[out_node_ix]))
+                total_graph.add_edges_from(these_edges)
+                out_edges.append(these_edges)
         self.output_edges = out_edges
 
         # define total graph of the loss-tolerant graph code
@@ -173,11 +177,13 @@ class LTCode(object):
             nx.draw_networkx_edges(self.code_graph, pos_nodes, edgelist=self.input_edges[in_idx], **options_edges)
 
         # draw output nodes & edges
-        for out_idx in range(self.num_logical_qbits):
-            options_nodes = {"node_size": 150, "alpha": 1, "node_color": "mediumblue"}
-            nx.draw_networkx_nodes(self.code_graph, pos_nodes, nodelist=[self.output_nodes[out_idx]], **options_nodes)
-            options_edges = {"width": 1.5, "alpha": 0.8, "edge_color": "navy"}
-            nx.draw_networkx_edges(self.code_graph, pos_nodes, edgelist=self.output_edges[out_idx], **options_edges)
+        if len(self.res_outputs) > 0:
+            for out_idx in range(self.num_logical_qbits):
+                options_nodes = {"node_size": 150, "alpha": 1, "node_color": "mediumblue"}
+                nx.draw_networkx_nodes(self.code_graph, pos_nodes, nodelist=[self.output_nodes[out_idx]],
+                                       **options_nodes)
+                options_edges = {"width": 1.5, "alpha": 0.8, "edge_color": "navy"}
+                nx.draw_networkx_edges(self.code_graph, pos_nodes, edgelist=self.output_edges[out_idx], **options_edges)
 
         # draw node labels
         if with_labels:
@@ -577,7 +583,6 @@ class LTCode(object):
                                                   use_indip_loss_combs=True):
 
         all_loss_combs = list(set(map(self.allowed_lost_qubits, teleport_meas)))
-
         if use_indip_loss_combs:
             loss_combs_to_use = get_independent_loss_combs(all_loss_combs)
         else:
@@ -609,8 +614,9 @@ class LTCode(object):
     ####################################################
 
     @staticmethod
-    def conditional_meas_sublist(meas_list, cond_qubit_meas):
-        return [meas[1:] for meas in meas_list if meas[0] == cond_qubit_meas]
+    def conditional_meas_sublist(meas_list, cond_qubit_meas, measured_qubit=0):
+        return [meas[0:measured_qubit:] + meas[measured_qubit + 1::] for meas in meas_list
+                if (meas[measured_qubit] == 'I' or meas[measured_qubit] == cond_qubit_meas)]
 
     def depthzero_best_meas(self, meas_list, weight_fact, loss_prob):
         """
@@ -634,8 +640,7 @@ class LTCode(object):
             return best_op, 1
         else:
             # print('SMS algo returning', best_op, 1-loss_prob)
-            return best_op, 1-loss_prob
-
+            return best_op, 1 - loss_prob
 
     def get_UnheraldLT_opt_meas(self, meas_list, loss_prob, weight_fact=4, tree_depth=0, max_tree_depth=0):
         """
@@ -666,9 +671,9 @@ class LTCode(object):
             # print('choosing strat: ', best_strat)
 
             if best_meas == 'I':
-                return best_meas+best_strat, best_prob
+                return best_meas + best_strat, best_prob
             else:
-                return best_meas+best_strat, best_prob * (1-loss_prob)
+                return best_meas + best_strat, best_prob * (1 - loss_prob)
 
     def Unheralded_loss_teleport_single_MC_trial(self, teleport_meas, loss_prob, follow_curr_best=False,
                                                  weight_fact=4, max_tree_depth=0):
@@ -683,7 +688,6 @@ class LTCode(object):
             # teleportation and 0 is returned.
             if not current_meas_list:
                 return 0
-
 
             # Decide the best measurement to do
             if follow_curr_best and (len(current_best_strategy) > 0):
@@ -757,6 +761,182 @@ class LTCode(object):
                                                                                  max_tree_depth=max_tree_depth)
             return succ_loss_corr / MC_trials
 
+    #####################################################################
+    #### ALGORITHM FOR NEW TYPES OF CODES WITH NO FIXED OUTPUT NODES ####
+    #####################################################################
+
+    # TODO: THINK ABOUT MAKING THE ALGORITHM WORK FOR MORE THAN 1 ENCODED QUBIT.
+
+    def all_logops_uptocardinality(self, max_m=5.):
+        # stabnodes = powerset_nonempty_tomax(list(self.res_graph_nodes) + list(self.output_nodes)
+        #                                     , min([self.nqubits, max_m]))
+        stabnodes = list(powerset_nonempty_tomax(list(self.res_graph_nodes) + list(self.output_nodes)
+                                                 , min([self.nqubits, max_m])))
+        # For all possible combinations of nodes multiplity the associated stab generators to get
+        # the associated stabilizers
+        labelles_stab_gens = self.get_code_stabilizer_gens_labelled()
+        allstabs = [reduce(lambda x, y: x * y, [labelles_stab_gens[ix] for ix in this_nontriv_stabnodes]) for
+                    this_nontriv_stabnodes in stabnodes]
+
+        [Z_log_ops, X_log_ops] = self.logical_ops
+        all_Z_log_ops = [[(this_stab * this_log_op).op for this_stab in allstabs] for this_log_op in Z_log_ops]
+        # Keep only the X ones with condition that on the input qubit they have 'I' (otherwise they won't commute
+        # with the Z logops on the input qubit)
+        all_X_log_ops = [[y for y in ((this_stab * this_log_op).op for this_stab in allstabs)
+                          if y[self.input_nodes[0]] == 'I']
+                         for this_log_op in X_log_ops]
+        return all_Z_log_ops[0], all_X_log_ops[0]
+
+    def max_tolerance_meas_ULTRA(self, qubits_left, z_logops, x_logops):
+        ops_weighted_counts = [[0, 0, 0, 0] for i in range(len(qubits_left))]
+
+        # get z_logops with minimum weight
+        z_weight_list = list(map(self.meas_weight, z_logops))
+        min_z_weight = min(z_weight_list)
+        minweight_z_logops = [logop for ix, logop in enumerate(z_logops) if z_weight_list[ix] == min_z_weight]
+
+        # get x_logops with minimum weight
+        x_weight_list = list(map(self.meas_weight, x_logops))
+        min_x_weight = min(x_weight_list)
+        minweight_x_logops = [logop for ix, logop in enumerate(x_logops) if x_weight_list[ix] == min_x_weight]
+
+        max_min_weigths = max([min_z_weight, min_x_weight])
+
+        # get measurement comparing only the minimum weight logops
+        for this_z_logop in minweight_z_logops:
+            for this_x_logop in minweight_x_logops:
+                for qbt_ix in range(len(qubits_left)):
+                    z_op = this_z_logop[qbt_ix]
+                    x_op = this_x_logop[qbt_ix]
+                    if z_op == 'I':
+                        op_ix = PauliOps.index(x_op)
+                        ops_weighted_counts[qbt_ix][op_ix] = ops_weighted_counts[qbt_ix][op_ix] + 1
+                    elif (z_op == x_op) or (x_op == 'I'):
+                        op_ix = PauliOps.index(z_op)
+                        ops_weighted_counts[qbt_ix][op_ix] = ops_weighted_counts[qbt_ix][op_ix] + 1
+
+        # Pick the best qubit to measure, i.e. the one which has a valid-measurement operator appearing in most valid
+        # x_logop - z_logop combinations, and the associated measurement operator.
+        max_all_qubits_list = list(map(max, ops_weighted_counts))
+        max_all_qubits = max(max_all_qubits_list)
+        chosen_qubit_ix = max_all_qubits_list.index(max_all_qubits)
+        if max_all_qubits == 0:
+            chosen_meas_op = 'I'
+        else:
+            chosen_meas_op = PauliOps[ops_weighted_counts[chosen_qubit_ix].index(max_all_qubits)]
+        chosen_qubit = qubits_left[chosen_qubit_ix]
+        return chosen_qubit, chosen_meas_op, max_min_weigths
+
+    def ULTRA_single_MC_trial(self, loss_prob, max_m=5.):
+        all_z_logops_list, all_x_logops_list = self.all_logops_uptocardinality(max_m=max_m)
+        print(all_z_logops_list)
+        # pick only the operators on the nodes in res_graph (we assume the input qubit exists and is measured in the
+        # X or Y basis associated to the Zlogop used in the final measurement strategy).
+        z_logops = [this_logop[:self.res_graph_num_nodes] for this_logop in all_z_logops_list]
+        x_logops = [this_logop[:self.res_graph_num_nodes] for this_logop in all_x_logops_list]
+
+        qubits0 = list(self.res_graph_nodes)
+        qubits_left = qubits0
+
+        for step in range(len(qubits0)):
+            print('Starting step', step, 'with qubits', qubits_left)
+            print('z_logops', z_logops)
+            print('x_logops', x_logops)
+
+            is_lost = False
+
+            # if any of the available logical operators or available qubits lists areempty, we failed.
+            if (not z_logops) or (not x_logops) or (not qubits_left):
+                return 0
+
+            chosen_qubit, chosen_meas_op, max_min_weight = self.max_tolerance_meas_ULTRA(qubits_left, z_logops, x_logops)
+            print('Obtained optimal measurement: qubit', chosen_qubit, '; op',chosen_meas_op)
+
+            # if there exist both x and z logical operators with weight <= 1, check if they can provide teleportation.
+            if max_min_weight <= 1:
+                print('\nCOOL! Got max_min_weight',max_min_weight,'...Trying teleportation')
+                weight1_z_logops = [logop for logop in z_logops if (self.meas_weight(logop) == 1)]
+                weight1_x_logops = [logop for logop in x_logops if (self.meas_weight(logop) == 1)]
+                z1_logops_elems = [next((ix, x) for ix, x in enumerate(this_logop) if x != 'I') for this_logop
+                                   in weight1_z_logops]
+                x1_logops_elems = [next((ix, x) for ix, x in enumerate(this_logop) if x != 'I') for this_logop
+                                   in weight1_x_logops]
+                print(z1_logops_elems)
+                print(x1_logops_elems)
+                for (z_qubit_ix, z_qubit_op) in z1_logops_elems:
+                    # if a teleportation try wasn't already in this step, keep going
+                    if not is_lost:
+                        for (x_qubit_ix, x_qubit_op) in x1_logops_elems:
+                            # if they act on the same qubit, keep going
+                            print((z_qubit_ix, z_qubit_op), (x_qubit_ix, x_qubit_op))
+                            if z_qubit_ix == x_qubit_ix:
+                                print('Acting on same qubit!')
+                                # if the associated operators anticommute, keep going
+                                if not (z_qubit_op == x_qubit_op or z_qubit_op == 'I' or x_qubit_op == 'I'):
+                                    print('Anticommute!')
+                                    # try to perform teleportation using this qubit
+                                    tried_teleport = True
+
+                                    # determine with probability loss_prob if photon is lost. If it is not lost,
+                                    # we successfully achieved teleportation.
+                                    if np.random.rand() > loss_prob:
+                                        print('PHOTON FOUND! TELEPORTATION SUCCESSFUL!')
+                                        return 1
+                                    else:
+                                        print('Photon is lost, keep trying\n')
+                                        # if photon is lost, remove the qubits from the available ones, and update
+                                        # logical operators.
+                                        is_lost = True
+                                        qubits_left.remove(z_qubit_ix)
+                                        # TODO: check if this way of updating logical operators is correct
+                                        z_logops = self.conditional_meas_sublist(z_logops, 'I', z_qubit_ix)
+                                        x_logops = self.conditional_meas_sublist(x_logops, 'I', z_qubit_ix)
+
+            # if there are no z_logops and x_logops combinations with weights < 1, measure a qubit to reduce weights
+            if not is_lost:
+
+                # determine if a qubit is lost with probability loss_prob
+                if np.random.rand() < loss_prob:
+                    is_lost = True
+                    # print('Photon is LOST')
+                else:
+                    is_lost = False
+                    # print('Photon is ALIVE!!')
+
+                if is_lost:
+                    # TODO: check if this way of updating logical operators is correct
+                    # update logical operators
+                    chosen_qubit_ix = qubits_left.index(chosen_qubit)
+                    z_logops = self.conditional_meas_sublist(z_logops, 'I', chosen_qubit_ix)
+                    x_logops = self.conditional_meas_sublist(x_logops, 'I', chosen_qubit_ix)
+                    # Remove qubit from available list
+                    qubits_left.remove(chosen_qubit)
+                else:
+                    # TODO: check if this way of updating logical operators is correct
+                    # update logical operators
+                    chosen_qubit_ix = qubits_left.index(chosen_qubit)
+                    z_logops = self.conditional_meas_sublist(z_logops, chosen_meas_op, chosen_qubit_ix)
+                    x_logops = self.conditional_meas_sublist(x_logops, chosen_meas_op, chosen_qubit_ix)
+                    # Remove qubit from available list
+                    qubits_left.remove(chosen_qubit)
+
+        # if we finish all available qubits and still didn't achieve teleportation, we failed
+        return 0
+
+    def ULTRA_teleport_prob_MC_estimation(self, loss_probs, max_m=5., MC_trials=10000):
+        if isinstance(loss_probs, (list, Iterable)):
+            tele_prob_list = []
+            for this_loss_prob in loss_probs:
+                succ_loss_corr = 0
+                for trial_ix in range(MC_trials):
+                    succ_loss_corr = succ_loss_corr + self.ULTRA_single_MC_trial(this_loss_prob, max_m)
+                tele_prob_list.append(succ_loss_corr / MC_trials)
+            return tele_prob_list
+        else:
+            succ_loss_corr = 0
+            for trial_ix in range(MC_trials):
+                succ_loss_corr = succ_loss_corr + self.ULTRA_single_MC_trial(loss_probs, max_m)
+            return succ_loss_corr / MC_trials
 
 ##############################
 ### OTHER USEFUL FUNCTIONS ###
@@ -827,7 +1007,7 @@ def get_independent_loss_combs(all_loss_combs):
                     check_non_incl = False
                     break
         # if not found anywhere, add loss_comb to ind_loss_combs
-        if not check_non_incl:
+        if check_non_incl:
             ind_loss_combs.append(loss_comb)
     return ind_loss_combs
 
@@ -865,15 +1045,21 @@ def rotate(point, angle, origin=(0, 0)):
 
 
 def powerset(iterable):
-    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    """powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"""
     s = list(iterable)
     return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
 
 
 def powerset_nonempty(iterable):
-    "powerset_nonempty([1,2,3]) --> (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    """powerset_nonempty([1,2,3]) --> (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"""
     s = list(iterable)
     return chain.from_iterable(combinations(s, r) for r in range(1, len(s) + 1))
+
+
+def powerset_nonempty_tomax(iterable, k):
+    """powerset_nonempty([1,2,3], 2) --> (1,) (2,) (3,) (1,2) (1,3) (2,3)"""
+    s = list(iterable)
+    return chain.from_iterable(combinations(s, r) for r in range(1, k + 1))
 
 
 ##############################
@@ -887,11 +1073,14 @@ if __name__ == '__main__':
 
     ########## Crazy-graph encoding
     nrows = 4
-    nlayers = 4
+    nlayers = 1
     encode_graph = gen_crazy_graph(nrows, nlayers)
+    # encode_graph = gen_square_lattice_graph(nrows, nlayers)
+    # encode_graph = gen_triangular_lattice_graph(nrows, nlayers)
+    # encode_graph = gen_hexagonal_lattice_graph(nrows, nlayers)
     # encode_graph = gen_multiwire_graph(nrows, nlayers)
     in_nodes = list(range(nrows))
-    out_nodes = list(range((nlayers - 1) * nrows, nrows * nlayers))
+    # out_nodes = list(range((nlayers - 1) * nrows, nrows * nlayers))
 
     # in_nodes = [[0, 1, 2], [3, 4, 5]]
     # out_nodes = [[6, 7, 8], [9, 10]]
@@ -901,9 +1090,10 @@ if __name__ == '__main__':
     # out_nodes = [[0, 1], [2]]
     # in_nodes = [[0, 1], [2, 3]]
     # out_nodes = [[4, 5], [6, 7]]
+    out_nodes = []
 
     ########## gen_fullyconnected_graph
-    # nqbts = 9
+    # nqbts = 16
     # encode_graph = gen_linear_graph(nqbts)
     # encode_graph = gen_fullyconnected_graph(nqbts)
     # encode_graph = gen_ring_graph(nqbts)
@@ -918,22 +1108,24 @@ if __name__ == '__main__':
 
     # qwe = mycode.full_allowed_heralded_loss_combinations(trivial_stab_test=False, exclude_input_ys=True)
 
-    start_time = time.time()
+    # start_time = time.time()
     # qwe = mycode.full_search_valid_teleportation_meas(trivial_stab_test=False, exclude_input_ys=True)
-    qwe = mycode.SPalgorithm_valid_teleportation_meas(max_m_increase_fact=2, test_inouts=True,
-                                                      exclude_input_ys=True, return_evolution=False)
-    end_time = time.time()
-    print()
-    print("Finished function, took:", end_time - start_time, "s")
-    print(len(qwe))
-    print(qwe)
-
-    # encode_adj_mat = nx.adjacency_matrix(encode_graph, nodelist=sorted(encode_graph.nodes())).todense()
-    # graph_adj_mat = nx.adjacency_matrix(mycode.code_graph, nodelist=sorted(mycode.code_graph.nodes())).todense()
+    # qwe = mycode.SPalgorithm_valid_teleportation_meas(max_m_increase_fact=2, test_inouts=True,
+    #                                                   exclude_input_ys=True, return_evolution=False)
+    # end_time = time.time()
     # print()
-    # print(encode_adj_mat)
-    # asd = find_min_cardinality_connecting_nodes(in_nodes, mycode.output_nodes,
-    #                                             graph_adj_mat, max_iterations=None)
+    # print("Finished function, took:", end_time - start_time, "s")
+    # print(len(qwe))
+    # print(qwe)
+
+    ############### NEW TESTS ADAPTIVE LOSS TOLERANCE
+
+    # asd = mycode.all_logops_uptocardinality(3)
+    loss_prob = 0
+    asd = mycode.ULTRA_single_MC_trial(loss_prob, max_m=5.)
+    print(asd)
+
+    ############### PRINT
 
     plt.figure()
     mycode.image(with_labels=True)
