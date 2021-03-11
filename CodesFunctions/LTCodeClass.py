@@ -10,6 +10,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections.abc import Iterable
 
+from copy import copy
+
 PauliOps = ['I', 'X', 'Y', 'Z']
 
 
@@ -159,9 +161,10 @@ class LTCode(object):
 
                 pos_nodes = pos_nodes_res
                 ydist = (max_y - min_y) / self.num_logical_qbits
-                for inoutrow_ix in range(self.num_logical_qbits):
-                    pos_nodes[self.input_nodes[inoutrow_ix]] = (min_x - xdist, min_y + ydist * (inoutrow_ix + 0.5))
-                    pos_nodes[self.output_nodes[inoutrow_ix]] = (max_x + xdist, min_y + ydist * (inoutrow_ix + 0.5))
+                for inrow_ix in range(len(self.res_inputs)):
+                    pos_nodes[self.input_nodes[inrow_ix]] = (min_x - xdist, min_y + ydist * (inrow_ix + 0.5))
+                for outrow_ix in range(len(self.res_outputs)):
+                    pos_nodes[self.output_nodes[outrow_ix]] = (max_x + xdist, min_y + ydist * (outrow_ix + 0.5))
 
         # draw resource graph nodes & edges
         options_nodes = {"node_size": 100, "alpha": 1, "node_color": "navy"}
@@ -827,21 +830,18 @@ class LTCode(object):
         chosen_qubit = qubits_left[chosen_qubit_ix]
         return chosen_qubit, chosen_meas_op, max_min_weigths
 
-    def ULTRA_single_MC_trial(self, loss_prob, max_m=5.):
-        all_z_logops_list, all_x_logops_list = self.all_logops_uptocardinality(max_m=max_m)
-        print(all_z_logops_list)
-        # pick only the operators on the nodes in res_graph (we assume the input qubit exists and is measured in the
-        # X or Y basis associated to the Zlogop used in the final measurement strategy).
-        z_logops = [this_logop[:self.res_graph_num_nodes] for this_logop in all_z_logops_list]
-        x_logops = [this_logop[:self.res_graph_num_nodes] for this_logop in all_x_logops_list]
+    def ULTRA_single_MC_trial(self, loss_prob, z_logops_res, x_logops_res, max_m=5.):
+
+        z_logops = copy(z_logops_res)
+        x_logops = copy(x_logops_res)
 
         qubits0 = list(self.res_graph_nodes)
         qubits_left = qubits0
 
         for step in range(len(qubits0)):
-            print('Starting step', step, 'with qubits', qubits_left)
-            print('z_logops', z_logops)
-            print('x_logops', x_logops)
+            # print('Starting step', step, 'with qubits', qubits_left)
+            # print('z_logops', z_logops)
+            # print('x_logops', x_logops)
 
             is_lost = False
 
@@ -850,47 +850,48 @@ class LTCode(object):
                 return 0
 
             chosen_qubit, chosen_meas_op, max_min_weight = self.max_tolerance_meas_ULTRA(qubits_left, z_logops, x_logops)
-            print('Obtained optimal measurement: qubit', chosen_qubit, '; op',chosen_meas_op)
+            # print('Obtained optimal measurement: qubit', chosen_qubit, '; op',chosen_meas_op)
 
             # if there exist both x and z logical operators with weight <= 1, check if they can provide teleportation.
             if max_min_weight <= 1:
-                print('\nCOOL! Got max_min_weight',max_min_weight,'...Trying teleportation')
+                # print('\nCOOL! Got max_min_weight',max_min_weight,'...Trying teleportation')
                 weight1_z_logops = [logop for logop in z_logops if (self.meas_weight(logop) == 1)]
                 weight1_x_logops = [logop for logop in x_logops if (self.meas_weight(logop) == 1)]
                 z1_logops_elems = [next((ix, x) for ix, x in enumerate(this_logop) if x != 'I') for this_logop
                                    in weight1_z_logops]
                 x1_logops_elems = [next((ix, x) for ix, x in enumerate(this_logop) if x != 'I') for this_logop
                                    in weight1_x_logops]
-                print(z1_logops_elems)
-                print(x1_logops_elems)
+                # print(z1_logops_elems)
+                # print(x1_logops_elems)
                 for (z_qubit_ix, z_qubit_op) in z1_logops_elems:
                     # if a teleportation try wasn't already in this step, keep going
                     if not is_lost:
                         for (x_qubit_ix, x_qubit_op) in x1_logops_elems:
                             # if they act on the same qubit, keep going
-                            print((z_qubit_ix, z_qubit_op), (x_qubit_ix, x_qubit_op))
+                            # print((z_qubit_ix, z_qubit_op), (x_qubit_ix, x_qubit_op))
                             if z_qubit_ix == x_qubit_ix:
-                                print('Acting on same qubit!')
+                                # print('Acting on same qubit!')
                                 # if the associated operators anticommute, keep going
                                 if not (z_qubit_op == x_qubit_op or z_qubit_op == 'I' or x_qubit_op == 'I'):
-                                    print('Anticommute!')
+                                    # print('Anticommute!')
                                     # try to perform teleportation using this qubit
-                                    tried_teleport = True
+                                    # tried_teleport = True
 
                                     # determine with probability loss_prob if photon is lost. If it is not lost,
                                     # we successfully achieved teleportation.
                                     if np.random.rand() > loss_prob:
-                                        print('PHOTON FOUND! TELEPORTATION SUCCESSFUL!')
+                                        # print('PHOTON FOUND! TELEPORTATION SUCCESSFUL!')
                                         return 1
                                     else:
-                                        print('Photon is lost, keep trying\n')
                                         # if photon is lost, remove the qubits from the available ones, and update
                                         # logical operators.
-                                        is_lost = True
-                                        qubits_left.remove(z_qubit_ix)
-                                        # TODO: check if this way of updating logical operators is correct
-                                        z_logops = self.conditional_meas_sublist(z_logops, 'I', z_qubit_ix)
-                                        x_logops = self.conditional_meas_sublist(x_logops, 'I', z_qubit_ix)
+                                        return 0
+
+                                        # is_lost = True
+                                        # qubits_left.remove(qubits_left[z_qubit_ix])
+                                        # # TODO: check if this way of updating logical operators is correct
+                                        # z_logops = self.conditional_meas_sublist(z_logops, 'I', z_qubit_ix)
+                                        # x_logops = self.conditional_meas_sublist(x_logops, 'I', z_qubit_ix)
 
             # if there are no z_logops and x_logops combinations with weights < 1, measure a qubit to reduce weights
             if not is_lost:
@@ -911,6 +912,7 @@ class LTCode(object):
                     x_logops = self.conditional_meas_sublist(x_logops, 'I', chosen_qubit_ix)
                     # Remove qubit from available list
                     qubits_left.remove(chosen_qubit)
+
                 else:
                     # TODO: check if this way of updating logical operators is correct
                     # update logical operators
@@ -924,18 +926,26 @@ class LTCode(object):
         return 0
 
     def ULTRA_teleport_prob_MC_estimation(self, loss_probs, max_m=5., MC_trials=10000):
+        all_z_logops_list, all_x_logops_list = self.all_logops_uptocardinality(max_m=max_m)
+        # pick only the operators on the nodes in res_graph (we assume the input qubit exists and is measured in the
+        # X or Y basis associated to the Zlogop used in the final measurement strategy).
+        z_logops_res = [this_logop[:self.res_graph_num_nodes] for this_logop in all_z_logops_list]
+        x_logops_res = [this_logop[:self.res_graph_num_nodes] for this_logop in all_x_logops_list]
+
         if isinstance(loss_probs, (list, Iterable)):
             tele_prob_list = []
             for this_loss_prob in loss_probs:
                 succ_loss_corr = 0
                 for trial_ix in range(MC_trials):
-                    succ_loss_corr = succ_loss_corr + self.ULTRA_single_MC_trial(this_loss_prob, max_m)
+                    succ_loss_corr = succ_loss_corr + self.ULTRA_single_MC_trial(this_loss_prob, z_logops_res,
+                                                                                 x_logops_res, max_m)
                 tele_prob_list.append(succ_loss_corr / MC_trials)
             return tele_prob_list
         else:
             succ_loss_corr = 0
             for trial_ix in range(MC_trials):
-                succ_loss_corr = succ_loss_corr + self.ULTRA_single_MC_trial(loss_probs, max_m)
+                succ_loss_corr = succ_loss_corr + self.ULTRA_single_MC_trial(loss_probs, z_logops_res,
+                                                                             x_logops_res, max_m)
             return succ_loss_corr / MC_trials
 
 ##############################
@@ -1121,7 +1131,7 @@ if __name__ == '__main__':
     ############### NEW TESTS ADAPTIVE LOSS TOLERANCE
 
     # asd = mycode.all_logops_uptocardinality(3)
-    loss_prob = 0
+    loss_prob = 0.4
     asd = mycode.ULTRA_single_MC_trial(loss_prob, max_m=5.)
     print(asd)
 

@@ -1,0 +1,181 @@
+from CodesFunctions.vector_is_graph import vector_is_graphstate, find_adj_matrix
+from CodesFunctions.GraphStateClass import GraphState
+
+import cirq
+import networkx as nx
+from itertools import product
+import numpy as np
+from copy import copy
+
+# Allowed_Gates = ['I', 'H', 'X', 'Z', 'Y', 'SX', 'SZ', 'T']
+Allowed_Gates = ['H', 'SX', 'X', 'I']
+
+H_mat = np.array([[1, 1], [1, -1]])/np.sqrt(2)
+I_mat = np.identity(2)
+
+
+def simulate_qd_scheme(spin_gates_list, print_circuit=False):
+    """Functions that calculates the state vectors of the QD spin (0-th qubit) and of the photonic qubits after the
+    pulse sequence. spin_gates_list. Returns the state vector. If print_circuit is True, the simulated circuit is
+    printed.
+
+    :param list spin_gates_list: gates to be done on the QD after each round of photon generation.
+    """
+
+    for this_rot in spin_gates_list:
+        if this_rot not in Allowed_Gates:
+            raise ValueError("All rotation gates need to be in allowed list.")
+
+    num_phot = len(spin_gates_list)
+    qubits = cirq.LineQubit.range(num_phot + 1)
+
+    # start preparing spin in |+>
+    all_gates = [cirq.H(qubits[0])]
+
+    for phot_ix, this_rot in enumerate(spin_gates_list):
+        # perform CNOT (photon generation)
+        all_gates.append(cirq.CNOT(qubits[0], qubits[phot_ix + 1]))
+        # spin ends up in opposite spin after the pi gate
+        all_gates.append(cirq.X(qubits[0]))
+        # do rotation on spin
+        if this_rot == 'H':
+            all_gates.append(cirq.H(qubits[0]))
+
+        if this_rot == 'X':
+            all_gates.append(cirq.X(qubits[0]))
+        if this_rot == 'Y':
+            all_gates.append(cirq.Y(qubits[0]))
+        if this_rot == 'Z':
+            all_gates.append(cirq.Z(qubits[0]))
+        if this_rot == 'SX':
+            all_gates.append(cirq.H(qubits[0]))
+            all_gates.append(cirq.S(qubits[0]))
+            all_gates.append(cirq.H(qubits[0]))
+        if this_rot == 'SZ':
+            all_gates.append(cirq.S(qubits[0]))
+        if this_rot == 'T':
+            all_gates.append(cirq.T(qubits[0]))
+
+    circuit = cirq.Circuit(all_gates)
+
+    if print_circuit:
+        print(circuit)
+
+    simulator = cirq.Simulator()
+    result = simulator.simulate(circuit)
+
+    return result.final_state_vector
+
+def get_singlequbitU_total_matr(n, single_qubit_U, num_qbts):
+    temp_mat = np.identity(2**n)
+    temp_mat = np.kron(temp_mat, single_qubit_U)
+    temp_mat = np.kron(temp_mat, np.identity(2**(num_qbts-n-1)))
+    return temp_mat
+
+
+
+def hadamards_to_uniform(state, num_qbts=None):
+    """Functions that, if a state doe not have uniform amplitudes, tries to apply Hadamards to obtain a uniform
+    superposition. Assumes that the amplitude for |00..00> is nonzero.
+    """
+
+    if num_qbts:
+        nqbts = num_qbts
+    else:
+        nqbts = int(np.log2(len(state)))
+    applied_hadamard = np.zeros(nqbts)
+
+    # if amplitudes are all the same already, return the state as it is.
+    if np.all(np.abs(state) == np.abs(state[0])):
+        return state, applied_hadamard
+
+    # if state[0] == 0:
+    #     raise ValueError('Amplitude for |00..00> must be nonzero to use the Hadamard uniformicator')
+
+    for qb_ix in range(num_qbts):
+        if state[2**qb_ix] == 0:
+            applied_hadamard[qb_ix] = 1
+            state = get_singlequbitU_total_matr(qb_ix, H_mat, nqbts) @ state
+    return state, applied_hadamard
+
+
+
+
+
+
+def does_qd_give_graph(spin_gates_list, accept_hadamards=True):
+    """Functions that checks if the qd and the associated pulse sequence generates a graph state. If it does,
+    it also returns the graph state as a GraphState class element.
+
+    :param list spin_gates_list: gates to be done on the QD after each round of photon generation.
+    """
+    tot_qubits_num = len(spin_gates_list)+1
+    state_vector = simulate_qd_scheme(spin_gates_list, print_circuit=False)
+    # print('Initial state_vec:', state_vector)
+    applied_hadamard = []
+    if accept_hadamards:
+        state_vector, applied_hadamard = hadamards_to_uniform(state_vector, num_qbts=tot_qubits_num)
+        # print('State_vec after hadamards:', state_vector)
+    is_graph, adj_mat = vector_is_graphstate(state_vector, num_qbts=tot_qubits_num)
+    if is_graph:
+        return True, adj_mat, applied_hadamard
+    else:
+        return False, [], applied_hadamard
+
+
+def arreq_in_list(myarr, list_arrays):
+    return next((True for elem in list_arrays if np.array_equal(elem, myarr)), False)
+
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+
+    #############################################
+    ####### TEST A SINGLE PULSE SEQUENCE ########
+    #############################################
+
+    ## list of rotations to be done on the spin
+    # rots_list = ['X', 'X', 'X'] # generate GHZ states, (not in graph form!)
+    # # rots_list = ['H', 'H', 'H', 'H', 'H'] # generates a nice graph
+    # # rots_list = ['SH', 'SH', 'SH'] # generates a nice graph
+    #
+    # ###### Calculates generated state vector
+    # final_state = simulate_qd_scheme(rots_list, print_circuit=True)
+    #
+    # ###### Check if state is graph state
+    # is_graph, adj_mat, applied_hadamard = does_qd_give_graph(rots_list, accept_hadamards=True)
+    # if is_graph:
+    #     self_loops = np.diag(adj_mat)
+    #     gstate=GraphState(nx.from_numpy_matrix(adj_mat))
+    #     print("Got a graph! Rotation sequence:", rots_list, " Self loops:", self_loops, " Applied hadamards: ",
+    #           applied_hadamard)
+    #     plt.subplot()
+    #     gstate.image(with_labels=True)
+    #     plt.show()
+    # else:
+    #     print("Not a graph :(")
+
+    ########################################################
+    ####### TEST ALL PULSE SEQUENCES WITH N PHOTONS ########
+    ########################################################
+    num_phots = 7
+    all_rots_lists = product(Allowed_Gates, repeat=num_phots)
+
+    obt_graphs = []
+    for rots_list in all_rots_lists:
+        is_graph, adj_mat, applied_hadamard = does_qd_give_graph(rots_list)
+        if is_graph:
+            self_loops = copy(np.diag(adj_mat))
+            gstate = GraphState(nx.from_numpy_matrix(adj_mat))
+            np.fill_diagonal(adj_mat, 0)
+            if not arreq_in_list(adj_mat, obt_graphs):
+                # print("Got a NEW graph! Rotation sequence:", rots_list, " Self loops:", self_loops, " Applied hadamards: ", applied_hadamard)
+                print(rots_list, self_loops, applied_hadamard)
+                obt_graphs.append(adj_mat)
+                plt.subplot()
+                gstate.image(with_labels=True)
+                plt.show()
+
+
+
+
+

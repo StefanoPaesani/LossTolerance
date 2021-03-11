@@ -5,8 +5,30 @@ imaginary_part_cutoff = 10 ** (-14)
 
 ## TODO: Make this more efficient, and include other states in the graph basis, using methods from the Griffiths notes.
 
-def check_if_neighbours(n, k, state, offset_phase=1, check_no_cmplx=True):
-    """ A function that, if state_signs are the signs of the vector state of a graph state, determines whether qubits
+
+def check_self_loops(n, state, offset_phase=1, check_no_cmplx=True):
+    """ A function that, given the vector of a graph state, determines if the n-th qubit has a self-loop (Z operations)
+
+    It does so by looking at the element in the vector associated to the ket of the type |00010...00>, where all
+    elements are 0 except the n-th, which is 1. The sign of such term is -1 (up to the offset, which
+    ensures that the term |00..00> has sign +1) iff there is a self-loop on qubit n, because all
+    the other qubits are 0s so no CZs are triggered.
+    """
+
+    if check_no_cmplx:
+        if np.sign(state[(2 ** n)]) == (-1) * offset_phase:
+            return 1
+        else:
+            return 0
+    else:  # things get a little bit nastier if complex global phases are involved
+        if np.abs(np.exp(np.angle(state[(2 ** n)]) * 1.j) - (-1) * offset_phase) < imaginary_part_cutoff:
+            return 1
+        else:
+            return 0
+
+
+def check_if_neighbours(n, k, state, self_loops, offset_phase=1, check_no_cmplx=True):
+    """ A function that, given the vector state of a graph state, determines whether qubits
     n and k are neighbours in the graph.
 
     It does so by looking at the element in the vector associated to the ket of the type |00010...010>, where all
@@ -16,12 +38,12 @@ def check_if_neighbours(n, k, state, offset_phase=1, check_no_cmplx=True):
     """
 
     if check_no_cmplx:
-        if np.sign(state[(2 ** k) + (2 ** n)]) == (-1) * offset_phase:
+        if np.sign(state[(2 ** k) + (2 ** n)]) == (-1) * offset_phase * ((-1)**(self_loops[n]+self_loops[k])):
             return True
         else:
             return False
     else:  # things get a little bit nastier if complex global phases are involved
-        if np.abs(np.exp(np.angle(state[(2 ** k) + (2 ** n)]) * 1.j) - (-1) * offset_phase) < imaginary_part_cutoff:
+        if np.abs(np.exp(np.angle(state[(2 ** k) + (2 ** n)]) * 1.j)*((-1)**(self_loops[n]+self_loops[k])) - (-1) * offset_phase) < imaginary_part_cutoff:
             return True
         else:
             return False
@@ -47,16 +69,18 @@ def find_adj_matrix(state, num_qbts=None):
     else:
         nqbts = int(np.log2(len(state)))
 
-    adj_mat = np.zeros((nqbts, nqbts))
+    self_loop_list = [check_self_loops(n, state, offset_phase=ref_phase, check_no_cmplx=check_no_cmplx) for n in range(nqbts)]
+    # adj_mat = np.zeros((nqbts, nqbts))
+    adj_mat = np.diag(self_loop_list)
     for n in range(nqbts - 1):
         for k in range(n + 1, nqbts):
-            if check_if_neighbours(n, k, state, offset_phase=ref_phase, check_no_cmplx=check_no_cmplx):
+            if check_if_neighbours(n, k, state, self_loop_list, offset_phase=ref_phase, check_no_cmplx=check_no_cmplx):
                 adj_mat[n, k] = adj_mat[k, n] = 1
     return adj_mat
 
 
 def check_correct_signs(state, adj_mat, num_qbts=None, print_error=False):
-    """ A function that, given a vector state and the adjacency matrix of a graph, determinnes whether the vector
+    """ A function that, given a vector state and the adjacency matrix of a graph, determines whether the vector
     corresponds to the graph state associated to the graph.
 
     If the state is a n-qubit state it requires O(2^n) operations, because it needs to check the sign of all elements
@@ -89,12 +113,17 @@ def check_correct_signs(state, adj_mat, num_qbts=None, print_error=False):
 
     ref_ampl = np.abs(state[0])
 
+    self_loops_list = np.diag(adj_mat)
+
     # elem indicates all comp. basis terms |00..00>, |00..01>,..,|11..11>, with qubit states given by the binary
     # expansion of elem.
     for elem in range(2 ** nqbts):
 
         # finds positions of 1s in the binary expansion of elem
         pos_ones = [pos for pos, bit in enumerate(bin(elem)[::-1]) if bit == '1']
+
+        # calculate offset due to self-loops
+        self_loops_offset = (-1)**sum([self_loops_list[i] for i in pos_ones])
 
         # counts the number of neighbouring pairs of qubits in this that are 1s in elems. Initialised to 0.
         num_neigh_pairs = 0
@@ -115,13 +144,13 @@ def check_correct_signs(state, adj_mat, num_qbts=None, print_error=False):
         # checks if the sign corresponds to (-1)^(number of neighbouring pairs with qubits in 1)
         # tries to avoid having to use complex numbers
         if check_no_cmplx:
-            if np.sign(this_ampl) != ref_phase * ((-1) ** num_neigh_pairs):
+            if np.sign(this_ampl) != ref_phase * self_loops_offset * ((-1) ** num_neigh_pairs):
                 if print_error:
                     print('Found a minus sign in the wrong position')
                 return False
         else:  # things get a little bit nastier if complex global phases are involved
             if np.abs(
-                    np.exp(np.angle(this_ampl) * 1.j) - ref_phase * ((-1) ** num_neigh_pairs)) > imaginary_part_cutoff:
+                    np.exp(np.angle(this_ampl) * 1.j) - ref_phase * self_loops_offset * ((-1) ** num_neigh_pairs)) > imaginary_part_cutoff:
                 if print_error:
                     print('Found a minus sign in the wrong position')
                 return False
@@ -162,18 +191,19 @@ def vector_is_graphstate(state, num_qbts=None, print_error=False):
 
 
 if __name__ == '__main__':
-    # mystate = np.array([1, 1, 1, -1, 1, 1, -1, 1])  # three qubit line
+    mystate = np.array([1, 1, 1, -1, 1, 1, -1, 1])  # three qubit line
+    mystate = np.array([1, 1, 1, -1, -1, -1, 1, -1])  # three qubit line - with loop on last qubit
     # mystate = np.array([1, 1, 1, -1,  1, -1, -1, -1]) # three qubit cycle
 
     # mystate = np.array([1, 1, 1, -1, 1, -1, -1, -1])
-    mystate = [ 0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j, # five qubit line
-              0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
-              0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,
-             -0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j, -0.17677668+0.j,
-              0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,
-              0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
-             -0.17677668+0.j, -0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
-              0.17677668-0.j,  0.17677668-0.j, -0.17677668+0.j,  0.17677668-0.j]
+    # mystate = [0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j, # five qubit line
+    #           0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
+    #           0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,
+    #          -0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j, -0.17677668+0.j,
+    #           0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,
+    #           0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
+    #          -0.17677668+0.j, -0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
+    #           0.17677668-0.j,  0.17677668-0.j, -0.17677668+0.j,  0.17677668-0.j]
 
     test_result, Amat = vector_is_graphstate(mystate, print_error=True)
 
