@@ -1,7 +1,7 @@
 import numpy as np
 
-
 imaginary_part_cutoff = 10 ** (-14)
+
 
 ## TODO: Make this more efficient, and include other states in the graph basis, using methods from the Griffiths notes.
 
@@ -14,39 +14,48 @@ def check_self_loops(n, state, offset_phase=1, check_no_cmplx=True):
     ensures that the term |00..00> has sign +1) iff there is a self-loop on qubit n, because all
     the other qubits are 0s so no CZs are triggered.
     """
-
-    if check_no_cmplx:
-        if np.sign(state[(2 ** n)]) == (-1) * offset_phase:
+    ampl_this_qubit = state[(2 ** n)]
+    if not np.iscomplex(ampl_this_qubit):
+        if ampl_this_qubit == (-1) * offset_phase:
             return 1
         else:
             return 0
     else:  # things get a little bit nastier if complex global phases are involved
-        if np.abs(np.exp(np.angle(state[(2 ** n)]) * 1.j) - (-1) * offset_phase) < imaginary_part_cutoff:
+        if np.abs(np.exp(np.angle(ampl_this_qubit) * 1.j) - (-1) * offset_phase) < imaginary_part_cutoff:
             return 1
         else:
             return 0
 
 
-def check_if_neighbours(n, k, state, self_loops, offset_phase=1, check_no_cmplx=True):
+def check_z_phase(n, state, nqbts, offset_phase=0):
+    """ A function that, given the vector of a graph state, determines if the n-th qubit has a local phase (Z rotation)
+    In case the local phase is np.pi, it corresponds to a self-loop.
+
+    It does so by looking at the element in the vector associated to the ket of the type |00010...00>, where all
+    elements are 0 except the n-th, which is 1. The phase of such term(up to the offset, which
+    ensures that the term |00..00> has sign +1) corresponds to the local Z phase.
+    """
+    return np.angle(state[(2 ** (nqbts - n - 1))]) - offset_phase
+
+
+def check_if_neighbours(n, k, state, local_phases, nqbts, offset_phase=0):
     """ A function that, given the vector state of a graph state, determines whether qubits
     n and k are neighbours in the graph.
 
     It does so by looking at the element in the vector associated to the ket of the type |00010...010>, where all
-    elements are 0 except the k-th and the n-th, which are 1s. The sign of such term is -1 (up to the offset, which
-    ensures that the term |00..00> has sign +1) iff there is a CZ (thus an edge) between qubits n and k: given that all
-    the other qubits are 0s, the only way there is -1 is if k and n are the control and target of a CZ.
+    elements are 0 except the k-th and the n-th, which are 1s. The sign of such term is -1 (up to the offset and
+    local phases, which ensures that the term |00..00> has sign +1) iff there is a CZ (thus an edge) between qubits n
+    and k: given that all the other qubits are 0s, the only way there is -1 is if k and n are the control and target
+    of a CZ.
     """
+    if np.isclose(
+            (np.angle(state[(2 ** (nqbts - k -1)) + (2 ** (nqbts - n -1))]) - (local_phases[n] + local_phases[k] + offset_phase)) % (
+                    2 * np.pi),
+            np.pi):
+        return True
+    else:
+        return False
 
-    if check_no_cmplx:
-        if np.sign(state[(2 ** k) + (2 ** n)]) == (-1) * offset_phase * ((-1)**(self_loops[n]+self_loops[k])):
-            return True
-        else:
-            return False
-    else:  # things get a little bit nastier if complex global phases are involved
-        if np.abs(np.exp(np.angle(state[(2 ** k) + (2 ** n)]) * 1.j)*((-1)**(self_loops[n]+self_loops[k])) - (-1) * offset_phase) < imaginary_part_cutoff:
-            return True
-        else:
-            return False
 
 
 def find_adj_matrix(state, num_qbts=None):
@@ -56,30 +65,24 @@ def find_adj_matrix(state, num_qbts=None):
     It works by applying the check_if_neighbours function to reconstruct the off-diagonal elements of the adjacency
     matrix.
     """
-    # tries to avoid using complex numbers
-    check_no_cmplx = True
-    if isinstance(state[0], np.complex128):
-        check_no_cmplx = False
-        ref_phase = np.exp(np.angle(state[0]) * 1.j)
-    else:
-        ref_phase = np.sign(state[0])
+
+    ref_phase = np.angle(state[0])
 
     if num_qbts:
         nqbts = num_qbts
     else:
         nqbts = int(np.log2(len(state)))
 
-    self_loop_list = [check_self_loops(n, state, offset_phase=ref_phase, check_no_cmplx=check_no_cmplx) for n in range(nqbts)]
-    # adj_mat = np.zeros((nqbts, nqbts))
-    adj_mat = np.diag(self_loop_list)
+    local_phases_list = [check_z_phase(n, state, nqbts, offset_phase=ref_phase) for n in range(nqbts)]
+    adj_mat = np.zeros((nqbts, nqbts))
     for n in range(nqbts - 1):
         for k in range(n + 1, nqbts):
-            if check_if_neighbours(n, k, state, self_loop_list, offset_phase=ref_phase, check_no_cmplx=check_no_cmplx):
+            if check_if_neighbours(n, k, state, local_phases_list, nqbts, offset_phase=ref_phase):
                 adj_mat[n, k] = adj_mat[k, n] = 1
-    return adj_mat
+    return adj_mat, local_phases_list
 
 
-def check_correct_signs(state, adj_mat, num_qbts=None, print_error=False):
+def check_correct_signs(state, adj_mat, local_phases, num_qbts=None, print_error=False):
     """ A function that, given a vector state and the adjacency matrix of a graph, determines whether the vector
     corresponds to the graph state associated to the graph.
 
@@ -103,17 +106,8 @@ def check_correct_signs(state, adj_mat, num_qbts=None, print_error=False):
     else:
         nqbts = int(np.log2(len(state)))
 
-    # tries to avoid using complex numbers
-    check_no_cmplx = True
-    if isinstance(state[0], np.complex128):
-        check_no_cmplx = False
-        ref_phase = np.exp(np.angle(state[0]) * 1.j)
-    else:
-        ref_phase = np.sign(state[0])
-
+    ref_phase = np.angle(state[0])
     ref_ampl = np.abs(state[0])
-
-    self_loops_list = np.diag(adj_mat)
 
     # elem indicates all comp. basis terms |00..00>, |00..01>,..,|11..11>, with qubit states given by the binary
     # expansion of elem.
@@ -122,8 +116,8 @@ def check_correct_signs(state, adj_mat, num_qbts=None, print_error=False):
         # finds positions of 1s in the binary expansion of elem
         pos_ones = [pos for pos, bit in enumerate(bin(elem)[::-1]) if bit == '1']
 
-        # calculate offset due to self-loops
-        self_loops_offset = (-1)**sum([self_loops_list[i] for i in pos_ones])
+        # calculate offset due to local phases
+        total_local_phases_offset = sum([local_phases[num_qbts - i - 1] for i in pos_ones]) + ref_phase
 
         # counts the number of neighbouring pairs of qubits in this that are 1s in elems. Initialised to 0.
         num_neigh_pairs = 0
@@ -143,17 +137,13 @@ def check_correct_signs(state, adj_mat, num_qbts=None, print_error=False):
 
         # checks if the sign corresponds to (-1)^(number of neighbouring pairs with qubits in 1)
         # tries to avoid having to use complex numbers
-        if check_no_cmplx:
-            if np.sign(this_ampl) != ref_phase * self_loops_offset * ((-1) ** num_neigh_pairs):
-                if print_error:
-                    print('Found a minus sign in the wrong position')
-                return False
-        else:  # things get a little bit nastier if complex global phases are involved
-            if np.abs(
-                    np.exp(np.angle(this_ampl) * 1.j) - ref_phase * self_loops_offset * ((-1) ** num_neigh_pairs)) > imaginary_part_cutoff:
-                if print_error:
-                    print('Found a minus sign in the wrong position')
-                return False
+
+        if not np.isclose(
+                (np.angle(this_ampl) - total_local_phases_offset) % (2 * np.pi),
+                (np.pi * num_neigh_pairs) % (2 * np.pi)):
+            if print_error:
+                print('Found a minus sign in the wrong position')
+            return False
 
     # If all the terms have a correct sign, the state is the graph state corresponding to the input adjacency matrix,
     # and the function returns True.
@@ -181,34 +171,69 @@ def vector_is_graphstate(state, num_qbts=None, print_error=False):
     else:
         nqbts = int(np.log2(len(state)))
 
-    adj_matrix = find_adj_matrix(state, num_qbts=nqbts)
-    test_graphstate = check_correct_signs(state, adj_matrix, num_qbts=nqbts, print_error=print_error)
+    adj_matrix, local_phases = find_adj_matrix(state, num_qbts=nqbts)
+    # print()
+    # print('adj_matrix')
+    # print(adj_matrix)
+    # print()
+    # print('local_phases')
+    # print(local_phases)
+    # print()
+
+    test_graphstate = check_correct_signs(state, adj_matrix, local_phases, num_qbts=nqbts, print_error=print_error)
 
     if test_graphstate:
-        return True, adj_matrix
+        return True, adj_matrix, local_phases
     else:
-        return False, []
+        return False, [], []
 
 
 if __name__ == '__main__':
-    mystate = np.array([1, 1, 1, -1, 1, 1, -1, 1])  # three qubit line
-    mystate = np.array([1, 1, 1, -1, -1, -1, 1, -1])  # three qubit line - with loop on last qubit
-    # mystate = np.array([1, 1, 1, -1,  1, -1, -1, -1]) # three qubit cycle
+    # mystate = np.array([1, 1, 1, -1, 1, 1, -1, 1])  # three qubit line
+    # mystate = np.array([1, 1, 1, -1, -1, -1, 1, -1])  # three qubit line - with loop on last qubit
+    mystate = np.array([1, 1, 1, -1,  1, -1, -1, -1]) # three qubit cycle
 
     # mystate = np.array([1, 1, 1, -1, 1, -1, -1, -1])
-    # mystate = [0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j, # five qubit line
+    # mystate = np.array([0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j, # five qubit line
     #           0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
     #           0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,
     #          -0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j, -0.17677668+0.j,
     #           0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,
     #           0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
     #          -0.17677668+0.j, -0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
-    #           0.17677668-0.j,  0.17677668-0.j, -0.17677668+0.j,  0.17677668-0.j]
+    #           0.17677668-0.j,  0.17677668-0.j, -0.17677668+0.j,  0.17677668-0.j])
 
-    test_result, Amat = vector_is_graphstate(mystate, print_error=True)
+    # three qubit line with z rotation on first qubit
+    # theta = np.pi/4.
+    # mystate = np.kron(np.array([[1, 0], [0, np.exp(1.j * theta)]]), np.identity(2 ** (2))) @ \
+    #           np.array([1, 1, 1, -1, 1, 1, -1, 1])
+
+    # three qubit line with z rotation on first and last qubit
+    # theta1 = np.pi/4.
+    # theta3 = 3*np.pi/4
+    # mat1 = np.array([[1, 0], [0, np.exp(1.j * theta1)]])
+    # mat3 = np.array([[1, 0], [0, np.exp(1.j * theta3)]])
+    # mystate = np.kron(np.kron(mat1, np.identity(2)), mat3) @ np.array([1, 1, 1, -1, 1, 1, -1, 1])
+
+    # five qubit line with z rotation on first qubit
+    # theta = np.pi/4.
+    # mystate = np.kron(np.array([[1, 0], [0, np.exp(1.j*theta)]]), np.identity(2**(4))) @ \
+    #           np.array([0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,
+    #           0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
+    #           0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,
+    #          -0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j, -0.17677668+0.j,
+    #           0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,
+    #           0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
+    #          -0.17677668+0.j, -0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
+    #           0.17677668-0.j,  0.17677668-0.j, -0.17677668+0.j,  0.17677668-0.j])
+
+    print(mystate)
+
+    test_result, Amat, local_phases = vector_is_graphstate(mystate, print_error=True)
 
     print(test_result)
     print(Amat)
+    print(local_phases)
 
     if test_result:
         from CodesFunctions.GraphStateClass import GraphState
