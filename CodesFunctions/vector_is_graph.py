@@ -109,23 +109,41 @@ def check_correct_signs(state, adj_mat, local_phases, num_qbts=None, print_error
     ref_phase = np.angle(state[0])
     ref_ampl = np.abs(state[0])
 
+
+
+    # print('Starting! will use:')
+    # print('ref_phase', ref_phase)
+    # print('ref_ampl', ref_ampl)
+    # print('local_phases', local_phases)
+    # print('adj_mat:')
+    # print(adj_mat)
+
     # elem indicates all comp. basis terms |00..00>, |00..01>,..,|11..11>, with qubit states given by the binary
     # expansion of elem.
     for elem in range(2 ** nqbts):
 
+        # print('\nDoing elem', bin(elem)[::-1])
+
         # finds positions of 1s in the binary expansion of elem
-        pos_ones = [pos for pos, bit in enumerate(bin(elem)[::-1]) if bit == '1']
+        pos_ones = [pos for pos, bit in enumerate(bin(elem)[2:].zfill(nqbts)) if bit == '1']
+        # print('pos_ones', pos_ones)
 
         # calculate offset due to local phases
-        total_local_phases_offset = sum([local_phases[num_qbts - i - 1] for i in pos_ones]) + ref_phase
+        total_local_phases_offset = sum([local_phases[i] for i in pos_ones]) + ref_phase
+        # print('total_local_phases_offset', total_local_phases_offset)
 
         # counts the number of neighbouring pairs of qubits in this that are 1s in elems. Initialised to 0.
         num_neigh_pairs = 0
 
         this_ampl = state[elem]
 
+
+        # print('this_ampl', this_ampl)
+        # print('abs(this_ampl)', abs(this_ampl))
+        # print('this_angle', np.angle(this_ampl))
+
         # check if the amplitude gives non-uniform amplitudes.
-        if np.abs(this_ampl) != ref_ampl:
+        if not np.isclose(np.abs(this_ampl), np.abs(ref_ampl)):
             if print_error:
                 print('Amplitudes not uniform')
             return False
@@ -134,6 +152,7 @@ def check_correct_signs(state, adj_mat, local_phases, num_qbts=None, print_error
             for k in range(n + 1, len(pos_ones)):
                 if adj_mat[pos_ones[n], pos_ones[k]] == 1:
                     num_neigh_pairs += 1
+        # print('num_neigh_pairs', num_neigh_pairs)
 
         # checks if the sign corresponds to (-1)^(number of neighbouring pairs with qubits in 1)
         # tries to avoid having to use complex numbers
@@ -189,9 +208,15 @@ def vector_is_graphstate(state, num_qbts=None, print_error=False):
 
 
 if __name__ == '__main__':
+
+    ####################################################
+    #######        TEST INDIVIDUAL VECTORS      ########
+    ####################################################
+
     # mystate = np.array([1, 1, 1, -1, 1, 1, -1, 1])  # three qubit line
     # mystate = np.array([1, 1, 1, -1, -1, -1, 1, -1])  # three qubit line - with loop on last qubit
-    mystate = np.array([1, 1, 1, -1,  1, -1, -1, -1]) # three qubit cycle
+    # mystate = np.array([1, 1, 1, -1, 1, -1, 1, 1])  # three qubit line - ordered as 0-2-1
+    # mystate = np.array([1, 1, 1, -1,  1, -1, -1, -1]) # three qubit cycle
 
     # mystate = np.array([1, 1, 1, -1, 1, -1, -1, -1])
     # mystate = np.array([0.17677668+0.j,  0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j, # five qubit line
@@ -204,9 +229,16 @@ if __name__ == '__main__':
     #           0.17677668-0.j,  0.17677668-0.j, -0.17677668+0.j,  0.17677668-0.j])
 
     # three qubit line with z rotation on first qubit
-    # theta = np.pi/4.
-    # mystate = np.kron(np.array([[1, 0], [0, np.exp(1.j * theta)]]), np.identity(2 ** (2))) @ \
-    #           np.array([1, 1, 1, -1, 1, 1, -1, 1])
+    # global_phase = np.pi/8.
+    # theta = np.pi/3.
+    # mystate = np.exp(1.j*global_phase) * np.kron(np.array([[1, 0], [0, np.exp(1.j * theta)]]), np.identity(2 ** (2))) @ \
+              # np.array([1, 1, 1, -1, 1, 1, -1, 1])
+
+    # three qubit line with z rotation on first qubit
+    # global_phase = np.pi
+    # theta = 0
+    # mystate = np.exp(1.j*global_phase) * np.kron(np.array([[1, 0], [0, np.exp(1.j * theta)]]), np.identity(2 ** (3))) @ \
+    #           np.ones(16)
 
     # three qubit line with z rotation on first and last qubit
     # theta1 = np.pi/4.
@@ -227,20 +259,91 @@ if __name__ == '__main__':
     #          -0.17677668+0.j, -0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
     #           0.17677668-0.j,  0.17677668-0.j, -0.17677668+0.j,  0.17677668-0.j])
 
-    print(mystate)
 
-    test_result, Amat, local_phases = vector_is_graphstate(mystate, print_error=True)
 
-    print(test_result)
-    print(Amat)
-    print(local_phases)
+    #### Test state
 
-    if test_result:
-        from CodesFunctions.GraphStateClass import GraphState
-        import networkx as nx
-        import matplotlib.pyplot as plt
+    # print(mystate)
+    #
+    # test_result, Amat, local_phases = vector_is_graphstate(mystate, print_error=True)
+    #
+    # print(test_result)
+    # print(Amat)
+    # print(local_phases)
+    #
+    # if test_result:
+    #     from CodesFunctions.GraphStateClass import GraphState
+    #     import networkx as nx
+    #     import matplotlib.pyplot as plt
+    #
+    #     graph = nx.from_numpy_matrix(Amat)
+    #     gstate = GraphState(graph)
+    #     gstate.image()
+    #     plt.show()
 
-        graph = nx.from_numpy_matrix(Amat)
-        gstate = GraphState(graph)
-        gstate.image()
-        plt.show()
+    #######################################################
+    ### TESTS WITH ALL POSSIBLE N-qubit GRAPHS VECTORS  ###
+    #######################################################
+
+    import networkx as nx
+    from CodesFunctions.GraphStateClass import GraphState
+    from CodesFunctions.LTCodeClass import powerset
+    from itertools import product, combinations
+    import matplotlib.pyplot as plt
+
+    qubits_num = 5
+
+    graph_nodes = list(range(qubits_num))
+    all_possible_edges = combinations(graph_nodes, 2)
+    all_graphs_by_edges = list(powerset(all_possible_edges))
+    num_graphs = len(all_graphs_by_edges)
+
+    recognised_graphs_num = 0
+
+    ### add global phase
+    global_phase = np.pi/7
+
+    ### add Z rotation on first qubit
+    theta = np.pi/5
+    added_U = np.kron(np.array([[1, 0], [0, np.exp(1.j*theta)]]), np.identity(2**(qubits_num-1)))
+
+    ### print stuff?
+    print_tests = False
+
+    for edges_conf_ix, graph_edges in enumerate(all_graphs_by_edges):
+        # print('Testing graph', edges_conf_ix, 'of', num_graphs)
+        graph = nx.Graph()
+        graph.add_nodes_from(graph_nodes)
+        graph.add_edges_from(graph_edges)
+        this_gstate = GraphState(graph)
+
+        target_adjmat = this_gstate.adj_mat()
+
+        vect_state0 = this_gstate.graph_vecstate()
+        vect_state = added_U @ vect_state0
+        vect_state = np.exp(1.j*global_phase) *  vect_state
+        test_if_graph, Amat, _ = vector_is_graphstate(vect_state, print_error=False)
+
+        if print_tests:
+            print()
+            print('target_adjmat:')
+            print(target_adjmat)
+            print('vect_state0')
+            print(vect_state0)
+            print('Amat')
+            print(Amat)
+            print('vect_state')
+            print(vect_state)
+            print('test_if_graph')
+            print(test_if_graph)
+
+            gstate = GraphState(graph)
+            gstate.image()
+            plt.show()
+
+
+        if test_if_graph:
+        # if test_if_graph and np.array_equal(Amat, target_adjmat):
+            recognised_graphs_num += 1
+
+    print('\n\nSuccessful graphs recognized: ', recognised_graphs_num*100./num_graphs, '%')
