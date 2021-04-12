@@ -63,6 +63,7 @@ def gen_multiwire_graph(nrows, nlayers):
         graph.add_edges_from(these_edges)
     return graph
 
+
 def gen_square_lattice_graph(nrows, nlayers):
     graph = nx.Graph()
     nodes_mat = np.arange(nrows * nlayers).reshape((nlayers, nrows))
@@ -75,7 +76,7 @@ def gen_square_lattice_graph(nrows, nlayers):
         graph.add_edges_from(these_edges)
     for layer_ix in range(nlayers):
         # Vertical edges
-        these_edges = [tuple([nodes_mat[layer_ix, row_ix], nodes_mat[layer_ix, row_ix+1]])
+        these_edges = [tuple([nodes_mat[layer_ix, row_ix], nodes_mat[layer_ix, row_ix + 1]])
                        for row_ix in range(nrows - 1)]
         graph.add_edges_from(these_edges)
     return graph
@@ -93,16 +94,16 @@ def gen_triangular_lattice_graph(nrows, nlayers):
         graph.add_edges_from(these_edges)
     for layer_ix in range(nlayers):
         # Vertical edges
-        these_edges = [tuple([nodes_mat[layer_ix, row_ix], nodes_mat[layer_ix, row_ix+1]])
+        these_edges = [tuple([nodes_mat[layer_ix, row_ix], nodes_mat[layer_ix, row_ix + 1]])
                        for row_ix in range(nrows - 1)]
         graph.add_edges_from(these_edges)
-    for layer_ix in range(nlayers-1):
+    for layer_ix in range(nlayers - 1):
         # transversal edges
         if (layer_ix % 2) == 0:
-            these_edges = [tuple([nodes_mat[layer_ix, row_ix], nodes_mat[layer_ix+1, row_ix-1]])
+            these_edges = [tuple([nodes_mat[layer_ix, row_ix], nodes_mat[layer_ix + 1, row_ix - 1]])
                            for row_ix in range(1, nrows)]
         else:
-            these_edges = [tuple([nodes_mat[layer_ix, row_ix], nodes_mat[layer_ix+1, row_ix+1]])
+            these_edges = [tuple([nodes_mat[layer_ix, row_ix], nodes_mat[layer_ix + 1, row_ix + 1]])
                            for row_ix in range(nrows - 1)]
         graph.add_edges_from(these_edges)
     return graph
@@ -121,10 +122,30 @@ def gen_hexagonal_lattice_graph(nrows, nlayers):
     for layer_ix in range(nlayers):
         # Vertical edges
         if (layer_ix % 2) == 0:
-            these_edges = [tuple([nodes_mat[layer_ix, 2*row_ix], nodes_mat[layer_ix, 2*row_ix + 1]])
-                           for row_ix in range(int(nrows/2))]
+            these_edges = [tuple([nodes_mat[layer_ix, 2 * row_ix], nodes_mat[layer_ix, 2 * row_ix + 1]])
+                           for row_ix in range(int(nrows / 2))]
         else:
-            these_edges = [tuple([nodes_mat[layer_ix, 2*row_ix+1], nodes_mat[layer_ix, 2*row_ix + 2]])
-                           for row_ix in range(int((nrows-1)/2))]
+            these_edges = [tuple([nodes_mat[layer_ix, 2 * row_ix + 1], nodes_mat[layer_ix, 2 * row_ix + 2]])
+                           for row_ix in range(int((nrows - 1) / 2))]
         graph.add_edges_from(these_edges)
+    return graph
+
+
+def gen_tree_graph(branching_list):
+    graph = nx.Graph()
+    temp_num_qubits = 0
+    tot_qubit_num = temp_num_qubits
+    old_qubits = []
+    for layer_num in range(len(branching_list) + 1):
+        temp_num_qubits = temp_num_qubits + int(np.prod(branching_list[:layer_num]))
+        new_qubits = list(range(tot_qubit_num, temp_num_qubits))
+        graph.add_nodes_from(range(tot_qubit_num, temp_num_qubits))
+        if layer_num > 0:
+            for old_qubit_ix, old_qubit in enumerate(old_qubits):
+                these_edges = [(old_qubit, node_ix) for node_ix in
+                               new_qubits[old_qubit_ix * branching_list[layer_num - 1]:
+                                          (old_qubit_ix + 1) * branching_list[layer_num - 1]]]
+                graph.add_edges_from(these_edges)
+        old_qubits = new_qubits
+        tot_qubit_num = temp_num_qubits
     return graph
