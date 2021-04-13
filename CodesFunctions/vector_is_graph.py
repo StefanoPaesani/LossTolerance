@@ -3,29 +3,7 @@ import numpy as np
 imaginary_part_cutoff = 10 ** (-14)
 
 
-## TODO: Make this more efficient, and include other states in the graph basis, using methods from the Griffiths notes.
-
-
-def check_self_loops(n, state, offset_phase=1, check_no_cmplx=True):
-    """ A function that, given the vector of a graph state, determines if the n-th qubit has a self-loop (Z operations)
-
-    It does so by looking at the element in the vector associated to the ket of the type |00010...00>, where all
-    elements are 0 except the n-th, which is 1. The sign of such term is -1 (up to the offset, which
-    ensures that the term |00..00> has sign +1) iff there is a self-loop on qubit n, because all
-    the other qubits are 0s so no CZs are triggered.
-    """
-    ampl_this_qubit = state[(2 ** n)]
-    if not np.iscomplex(ampl_this_qubit):
-        if ampl_this_qubit == (-1) * offset_phase:
-            return 1
-        else:
-            return 0
-    else:  # things get a little bit nastier if complex global phases are involved
-        if np.abs(np.exp(np.angle(ampl_this_qubit) * 1.j) - (-1) * offset_phase) < imaginary_part_cutoff:
-            return 1
-        else:
-            return 0
-
+## TODO: use numpy/itertools maps instead of for loops
 
 def check_z_phase(n, state, nqbts, offset_phase=0):
     """ A function that, given the vector of a graph state, determines if the n-th qubit has a local phase (Z rotation)
@@ -49,13 +27,13 @@ def check_if_neighbours(n, k, state, local_phases, nqbts, offset_phase=0):
     of a CZ.
     """
     if np.isclose(
-            (np.angle(state[(2 ** (nqbts - k -1)) + (2 ** (nqbts - n -1))]) - (local_phases[n] + local_phases[k] + offset_phase)) % (
+            (np.angle(state[(2 ** (nqbts - k - 1)) + (2 ** (nqbts - n - 1))]) - (
+                    local_phases[n] + local_phases[k] + offset_phase)) % (
                     2 * np.pi),
             np.pi):
         return True
     else:
         return False
-
 
 
 def find_adj_matrix(state, num_qbts=None):
@@ -109,8 +87,6 @@ def check_correct_signs(state, adj_mat, local_phases, num_qbts=None, print_error
     ref_phase = np.angle(state[0])
     ref_ampl = np.abs(state[0])
 
-
-
     # print('Starting! will use:')
     # print('ref_phase', ref_phase)
     # print('ref_ampl', ref_ampl)
@@ -136,7 +112,6 @@ def check_correct_signs(state, adj_mat, local_phases, num_qbts=None, print_error
         num_neigh_pairs = 0
 
         this_ampl = state[elem]
-
 
         # print('this_ampl', this_ampl)
         # print('abs(this_ampl)', abs(this_ampl))
@@ -232,7 +207,7 @@ if __name__ == '__main__':
     # global_phase = np.pi/8.
     # theta = np.pi/3.
     # mystate = np.exp(1.j*global_phase) * np.kron(np.array([[1, 0], [0, np.exp(1.j * theta)]]), np.identity(2 ** (2))) @ \
-              # np.array([1, 1, 1, -1, 1, 1, -1, 1])
+    # np.array([1, 1, 1, -1, 1, 1, -1, 1])
 
     # three qubit line with z rotation on first qubit
     # global_phase = np.pi
@@ -258,8 +233,6 @@ if __name__ == '__main__':
     #           0.17677668+0.j,  0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
     #          -0.17677668+0.j, -0.17677668+0.j, -0.17677668+0.j,  0.17677668-0.j,
     #           0.17677668-0.j,  0.17677668-0.j, -0.17677668+0.j,  0.17677668-0.j])
-
-
 
     #### Test state
 
@@ -301,11 +274,11 @@ if __name__ == '__main__':
     recognised_graphs_num = 0
 
     ### add global phase
-    global_phase = np.pi/7
+    global_phase = np.pi / 7
 
     ### add Z rotation on first qubit
-    theta = np.pi/5
-    added_U = np.kron(np.array([[1, 0], [0, np.exp(1.j*theta)]]), np.identity(2**(qubits_num-1)))
+    theta = np.pi / 5
+    added_U = np.kron(np.array([[1, 0], [0, np.exp(1.j * theta)]]), np.identity(2 ** (qubits_num - 1)))
 
     ### print stuff?
     print_tests = False
@@ -321,7 +294,7 @@ if __name__ == '__main__':
 
         vect_state0 = this_gstate.graph_vecstate()
         vect_state = added_U @ vect_state0
-        vect_state = np.exp(1.j*global_phase) *  vect_state
+        vect_state = np.exp(1.j * global_phase) * vect_state
         test_if_graph, Amat, _ = vector_is_graphstate(vect_state, print_error=False)
 
         if print_tests:
@@ -341,9 +314,8 @@ if __name__ == '__main__':
             gstate.image()
             plt.show()
 
-
         if test_if_graph:
-        # if test_if_graph and np.array_equal(Amat, target_adjmat):
+            # if test_if_graph and np.array_equal(Amat, target_adjmat):
             recognised_graphs_num += 1
 
-    print('\n\nSuccessful graphs recognized: ', recognised_graphs_num*100./num_graphs, '%')
+    print('\n\nSuccessful graphs recognized: ', recognised_graphs_num * 100. / num_graphs, '%')
