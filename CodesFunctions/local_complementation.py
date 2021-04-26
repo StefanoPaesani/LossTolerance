@@ -22,7 +22,15 @@ def is_isomorphic_fixednode(G1, G2, fixed_node):
     if fixed_node not in nodes:
         raise ValueError('fixed_node needs to be one of the existing nodes in both graphs')
     nodes.remove(fixed_node)
-    return nx.is_isomorphic(G1.subgraph(nodes), G2.subgraph(nodes))
+
+    ## To check if the two graphs are isomorph taking into account the input qubit, it performs two tests:
+    ##  - The graphs are isomorphic
+    ##  - The subgraphs without the input node are isomorphic
+    is_isomorph_withfixed = nx.is_isomorphic(G1, G2) \
+                            and nx.is_isomorphic(G1.subgraph(nodes), G2.subgraph(nodes))
+
+
+    return is_isomorph_withfixed
 
 
 def check_isomorphism_with_fixednode(G, list_graphs, fixed_node):
@@ -137,12 +145,14 @@ if __name__ == '__main__':
 
     # mygraph0 = gen_star_graph(5)
     # mygraph0 = gen_tree_graph([2, 2])
-    mygraph0 = gen_square_lattice_graph(3, 2)
+    # mygraph0 = gen_square_lattice_graph(3, 2)
+    # mygraph0 = gen_linear_graph(4)
+    mygraph0 = gen_ring_graph(5)
 
     print('Calculating LC class')
-    lc_class = lc_equivalence_class_full(mygraph0)
+    # lc_class = lc_equivalence_class_full(mygraph0)
     # lc_class = lc_equivalence_class(mygraph0)
-    # lc_class = lc_equivalence_class(mygraph0, fixed_node=0)
+    lc_class = lc_equivalence_class(mygraph0, fixed_node=0)
 
     num_graphs = len(lc_class)
     print('Found', num_graphs, 'graphs in the equivalence class')
