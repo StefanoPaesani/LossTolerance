@@ -49,7 +49,7 @@ class GraphState(object):
         return len(self.graph.nodes())
 
     ## PRINTING ##
-    def image(self, with_labels=True, font_weight='bold', position_nodes=None):
+    def image(self, with_labels=True, font_weight='bold', position_nodes=None, input_qubits=[]):
         """
         Produces a matplotlib image of the graph associated to the graph state.
         """
@@ -60,8 +60,8 @@ class GraphState(object):
                 pos_nodes = nx.multipartite_layout(self.graph, subset_key="layer")
             else:
                 pos_nodes = nx.spring_layout(self.graph)
-
-        nx.draw(self.graph, pos_nodes, with_labels=with_labels, font_weight=font_weight)
+        color_map = ['red' if this_node in input_qubits else 'blue' for this_node in self.graph.nodes]
+        nx.draw(self.graph, pos_nodes, node_color=color_map, with_labels=with_labels, font_weight=font_weight)
 
 
     ##
