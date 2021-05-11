@@ -129,8 +129,8 @@ def check_LCequiv(graph1, graph2, return_all=True):
         nqbs = nqb1
 
     # get adjacency matrices
-    adj1 = nx.adjacency_matrix(graph1, nodelist=sorted(graph1.nodes())).todense()
-    adj2 = nx.adjacency_matrix(graph2, nodelist=sorted(graph2.nodes())).todense()
+    adj1 = nx.convert_matrix.to_numpy_matrix(graph1, nodelist=sorted(graph1.nodes()), dtype=int)
+    adj2 = nx.convert_matrix.to_numpy_matrix(graph2, nodelist=sorted(graph2.nodes()), dtype=int)
 
     # Here starts the algorithm
     # initialise linear system of binary equations

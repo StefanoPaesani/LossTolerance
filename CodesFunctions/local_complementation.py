@@ -2,6 +2,11 @@ import networkx as nx
 
 # TODO: delete matplotlib from here
 import matplotlib.pyplot as plt
+from CodesFunctions.lc_equivalence import check_LCequiv
+
+
+def check_LCequiv_withlist(G, list_graphs):
+    return next((True for elem in list_graphs if check_LCequiv(elem, G)[0]), False)
 
 
 def arreq_in_list(myarr, list_arrays):
@@ -31,7 +36,6 @@ def is_isomorphic_fixednode(G1, G2, fixed_node):
 
 
     return is_isomorph_withfixed
-
 
 def check_isomorphism_with_fixednode(G, list_graphs, fixed_node):
     return next((True for elem in list_graphs if is_isomorphic_fixednode(elem, G, fixed_node)), False)
@@ -107,16 +111,18 @@ if __name__ == '__main__':
 
     ################# TEST GRAPH ISOMORPHISM #####################
 
+    # fixed_node = 0
+    #
     # mygraph0 = gen_star_graph(3)
     # # mygraph0 = gen_linear_graph(5)
     # # mygraph0 = gen_star_graph(5, 0)
     #
-    # mygraph1 = gen_ring_graph(3)
-    # # mygraph1 = gen_star_graph(5, 2)
+    # # mygraph1 = gen_ring_graph(3)
+    # mygraph1 = gen_star_graph(3, 2)
     # # mygraph1 = gen_tree_graph([2, 1])
     #
+    # are_is = is_isomorphic_fixednode(mygraph0, mygraph1, fixed_node)
     #
-    # are_is = nx.is_isomorphic(mygraph0, mygraph1)
     # if are_is:
     #     print('are isomorphic')
     # else:
@@ -141,36 +147,57 @@ if __name__ == '__main__':
     # nx.draw(mygraphLC, with_labels=True)
     # plt.show()
 
+    ################# TEST IF GRAPHS ARE LOCALLY EQUIVALENT #####################
+    all_graphs = []
+
+    mygraph0 = gen_ring_graph(5)
+    all_graphs.append(mygraph0)
+
+    mygraph = local_complementation(mygraph0, 0)
+    all_graphs.append(mygraph)
+
+    mygraph = gen_empty_graph(5)
+    all_graphs.append(mygraph)
+
+    lc_equiv_list = [check_LCequiv(mygraph0, elem, return_all=False)[0] for elem in all_graphs]
+    print('lc_equiv_list', lc_equiv_list)
+
+    for graph_ix, this_graph in enumerate(all_graphs):
+        plt.subplot(1, len(all_graphs), graph_ix + 1)
+        nx.draw(this_graph, with_labels=True)
+    plt.show()
+
     ################# FIND FULL LOCAL EQUIVALENCE CLASS #################
 
-    # mygraph0 = gen_star_graph(5)
-    # mygraph0 = gen_tree_graph([2, 2])
-    # mygraph0 = gen_square_lattice_graph(3, 2)
-    # mygraph0 = gen_linear_graph(4)
-    mygraph0 = gen_ring_graph(5)
-
-    print('Calculating LC class')
-    # lc_class = lc_equivalence_class_full(mygraph0)
-    # lc_class = lc_equivalence_class(mygraph0)
-    lc_class = lc_equivalence_class(mygraph0, fixed_node=0)
-
-    num_graphs = len(lc_class)
-    print('Found', num_graphs, 'graphs in the equivalence class')
-
-    # plot all best graphs
-    print('Plotting all graphs in LC class')
-
-    n = num_graphs
-    i = 2
-    while i * i < n:
-        while n % i == 0:
-            n = n / i
-        i = i + 1
-
-    n_plot_rows = num_graphs / n
-    n_plot_cols = n
-
-    for graph_ix, G in enumerate(lc_class):
-        plt.subplot(n_plot_rows, n_plot_cols, graph_ix + 1)
-        nx.draw(G, with_labels=True)
-    plt.show()
+    # # mygraph0 = gen_star_graph(5)
+    # # mygraph0 = gen_tree_graph([2, 2])
+    # # mygraph0 = gen_square_lattice_graph(3, 2)
+    # # mygraph0 = gen_linear_graph(4)
+    # mygraph0 = gen_ring_graph(5)
+    #
+    # in_node = 0
+    #
+    # print('Calculating LC class')
+    # # lc_class = lc_equivalence_class_full(mygraph0)
+    # # lc_class = lc_equivalence_class(mygraph0)
+    # lc_class = lc_equivalence_class(mygraph0, fixed_node=in_node)
+    #
+    # num_graphs = len(lc_class)
+    # print('Found', num_graphs, 'graphs in the equivalence class')
+    #
+    # # plot all best graphs
+    # print('Plotting all graphs in LC class')
+    # n = int(np.sqrt(num_graphs))
+    #
+    # n_plot_rows = n
+    # n_plot_cols = num_graphs / n
+    # if not isinstance(n_plot_cols, int):
+    #     n_plot_cols = int(n_plot_cols) + 1
+    #
+    #
+    #
+    # for graph_ix, G in enumerate(lc_class):
+    #     plt.subplot(n_plot_rows, n_plot_cols, graph_ix + 1)
+    #     color_map = ['red' if this_node == in_node else 'blue' for this_node in G.nodes]
+    #     nx.draw(G, node_color=color_map, with_labels=True)
+    # plt.show()

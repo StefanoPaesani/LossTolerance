@@ -4,8 +4,25 @@ import networkx as nx
 import numpy as np
 from itertools import product, combinations
 
+from CodesFunctions.GraphStateClass import GraphState
+
+# quick graph state definition
+def graph_from_nodes_and_edges(graph_nodes, graph_edges):
+    graph = nx.Graph()
+    graph.add_nodes_from(graph_nodes)
+    graph.add_edges_from(graph_edges)
+    return graph
+
+
+def graphstate_from_nodes_and_edges(graph_nodes, graph_edges):
+    return GraphState(graph_from_nodes_and_edges(graph_nodes, graph_edges))
 
 ## GRAPH INITIALIZATION FUNCTIONS ##
+
+def gen_empty_graph(nqubits):
+    graph = nx.Graph()
+    graph.add_nodes_from(range(nqubits))
+    return graph
 
 def gen_linear_graph(nqubits):
     graph = nx.Graph()
@@ -149,3 +166,18 @@ def gen_tree_graph(branching_list):
         old_qubits = new_qubits
         tot_qubit_num = temp_num_qubits
     return graph
+
+
+def gen_random_graph(n, p):
+    # generates Erdős–Rényi random with n nodes and probability p for each edge to exist
+    return nx.fast_gnp_random_graph(n, p)
+
+
+def gen_random_connected_graph(n):
+    # generates Erdős–Rényi random with n nodes which is, with high probability, connected.
+    # The condition for connectedness with high probability is p>ln(n)/n
+    p_randomgraph = np.random.uniform(np.log(n)/n, 1)
+    return nx.fast_gnp_random_graph(n, p_randomgraph)
+
+
+

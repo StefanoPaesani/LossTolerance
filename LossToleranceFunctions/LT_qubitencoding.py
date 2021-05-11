@@ -1,4 +1,6 @@
 from CodesFunctions.GraphStateClass import GraphState
+from CodesFunctions.local_complementation import lc_equivalence_class, check_isomorphism_with_fixednode, check_LCequiv_withlist
+
 
 import qecc as q
 import numpy as np
@@ -61,7 +63,8 @@ def MC_decoding(poss_stabs_list, transmission, in_qubit=0, printing=False):
     while not finished:
         if printing:
             print()
-            print("starting new measurement, meas_out", meas_out, ", measured_qubits", measured_qubits, ", lost_qubits", lost_qubits)
+            print("starting new measurement, meas_out", meas_out, ", measured_qubits", measured_qubits, ", lost_qubits",
+                  lost_qubits)
             print("Current stabs:", poss_stabs_list)
 
         # if there are no possible measurement to do, we have failed and we stop
@@ -139,7 +142,8 @@ def MC_decoding(poss_stabs_list, transmission, in_qubit=0, printing=False):
                         poss_stabs_list = filter_measured_qubit_fixed_basis(poss_stabs_list, meas_config, meas_qubit_ix)
                     else:
                         # if the measured qubit is an output, it was measured in an arbitrary basis, and we update the possible measurement strategies accordingly
-                        poss_stabs_list = filter_measured_qubit_output_basis(poss_stabs_list, meas_config, meas_qubit_ix)
+                        poss_stabs_list = filter_measured_qubit_output_basis(poss_stabs_list, meas_config,
+                                                                             meas_qubit_ix)
                         meas_out = True
 
                 else:
@@ -221,6 +225,7 @@ def filter_measured_qubit_fixed_basis(poss_stabs_list, meas_config, meas_qbt_ix)
     return [these_stabs for these_stabs in poss_stabs_list if
             (these_stabs[0][1] != meas_qbt_ix and these_stabs[3][meas_qbt_ix] == fixed_basis)]
 
+
 # keeps only the possible strategies in which the meas_qbt_ix is an output or it is not measured
 # (for qubits measured in an arbitrary output basis that cannot anymore be measured in fixed bases)
 def filter_measured_qubit_output_basis(poss_stabs_list, meas_config, meas_qbt_ix):
@@ -250,12 +255,7 @@ def get_R(k, loss, branch_list, m):
         return 1 - ((1 - (1 - loss) * ((1 - loss + loss * this_R) ** temp_b)) ** branch_list[k])
 
 
-# quick graph state definition
-def graphstate_from_nodes_and_edges(graph_nodes, graph_edges):
-    graph = nx.Graph()
-    graph.add_nodes_from(graph_nodes)
-    graph.add_edges_from(graph_edges)
-    return GraphState(graph)
+
 
 
 ########################################################################################################################
@@ -266,7 +266,15 @@ def graphstate_from_nodes_and_edges(graph_nodes, graph_edges):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    from CodesFunctions.LTCodeClass import powerset
+
+    from itertools import chain
+    def powerset(iterable):
+        "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+        s = list(iterable)
+        return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
+
+
+    branching = None
 
     ## index of the input qubit (output qubit is free)
     in_qubit = 0
@@ -274,7 +282,7 @@ if __name__ == '__main__':
     ## define graph state
 
     # three graph
-    # branching = [2, 1]
+    # branching = [2, 2]
     # graph = gen_tree_graph(branching)
     # gstate = GraphState(graph)
 
@@ -283,8 +291,18 @@ if __name__ == '__main__':
     # gstate = GraphState(graph)
 
     ### ring graph
-    graph = gen_ring_graph(5)
-    gstate = GraphState(graph)
+    # graph = gen_ring_graph(5)
+    # gstate = GraphState(graph)
+
+    ### line graph L543021 with no loss-tolerance
+    # graph_nodes = list(range(6))
+    # graph_edges = [(5, 4), (4, 3), (3, 0), (0, 2), (2, 1)]
+    # gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
+
+    ### Graph equivalent to L543021 with loss-tolerance
+    graph_nodes = list(range(6))
+    graph_edges = [(5, 4), (4, 3), (4, 0), (4, 2), (0, 3), (3, 2), (2, 1)]
+    gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
 
     ## get list of possible measurements to encode & decode the state
     poss_stabs_list = get_possible_stabs_meas(gstate, in_qubit)
@@ -294,7 +312,7 @@ if __name__ == '__main__':
     ##############################################################################
 
     ## define channel transmission
-    # transmission = 0.7
+    # transmission = 0.8
     # decoding_succ = MC_decoding(poss_stabs_list, transmission, in_qubit, printing=True)
     #
     # ## see if we succeded or failed
@@ -314,7 +332,8 @@ if __name__ == '__main__':
 
     eff_list = np.linspace(0, 1, eff_list_num)
     plt.plot(eff_list, succ_prob_list, label='LT qubit')
-    # plt.plot(eff_list, [p_analyt_tree(t, branching) for t in eff_list], 'b:', linewidth=2, label='LT tree-theo')
+    if branching is not None:
+        plt.plot(eff_list, [p_analyt_tree(t, branching) for t in eff_list], 'b:', linewidth=2, label='LT tree-theo')
     plt.plot(eff_list, eff_list, 'k-', label='direct transm.')
     plt.legend()
     plt.show()
@@ -367,16 +386,36 @@ if __name__ == '__main__':
     ################# SEARCH FOR BEST GRAPHS ##############################
     #######################################################################
 
-    # qubits_num = 5
+    # qubits_num = 6
+    # in_qubit = 0
     #
     # graph_nodes = list(range(qubits_num))
     # all_possible_edges = combinations(graph_nodes, 2)
     # all_graphs_by_edges = list(powerset(all_possible_edges))
-    # num_graphs = len(all_graphs_by_edges)
     #
-    # graph_states = [graphstate_from_nodes_and_edges(graph_nodes, these_edges) for these_edges in all_graphs_by_edges]
+    # all_graphs = [graph_from_nodes_and_edges(graph_nodes, these_edges) for these_edges in all_graphs_by_edges]
+    # num_all_graphs = len(all_graphs)
+    # print("Total number of graphs found:", num_all_graphs)
     #
-    # in_qubit = 0
+    # # Filter locally-equivalent and isomorphic graphs
+    # lc_class_representatives = []
+    # graphs = []
+    #
+    # for graph_ix, graph in enumerate(all_graphs):
+    #     if graph_ix % 100 == 0:
+    #         print('Filtering graph', graph_ix, 'of', num_all_graphs)
+    #     if not check_LCequiv_withlist(graph, lc_class_representatives):
+    #         if not check_isomorphism_with_fixednode(graph, lc_class_representatives, fixed_node=in_qubit):
+    #             if not check_isomorphism_with_fixednode(graph, graphs, fixed_node=in_qubit):
+    #                 lc_class_representatives.append(graph)
+    #                 full_new_lc_class = lc_equivalence_class(graph, fixed_node=in_qubit)
+    #                 graphs = graphs + [this_graph for this_graph in full_new_lc_class]
+    #
+    # # graph_states = [GraphState(this_graph) for this_graph in lc_class_representatives]
+    # graph_states = [GraphState(this_graph) for this_graph in graphs]
+    # # print("Number of LC classes:", len(lc_class_representatives))
+    #
+    # num_graphs = len(graph_states)
     #
     # ########   Round 1  #########
     #
@@ -422,17 +461,14 @@ if __name__ == '__main__':
     # plt.show()
     #
     # # plot all best graphs
-    # n = num_best_codes
-    # i = 2
-    # while i * i < n:
-    #     while n % i == 0:
-    #         n = n / i
-    #     i = i + 1
+    # n = int(np.sqrt(num_best_codes))
     #
-    # n_plot_rows = num_best_codes / n
-    # n_plot_cols = n
+    # n_plot_rows = n
+    # n_plot_cols = num_best_codes / n
+    # if not isinstance(n_plot_cols, int):
+    #     n_plot_cols = int(n_plot_cols) + 1
     #
     # for code_ix in range(num_best_codes):
     #     plt.subplot(n_plot_rows, n_plot_cols, code_ix + 1)
-    #     best_codes[code_ix].image(with_labels=True)
+    #     best_codes[code_ix].image(with_labels=True, input_qubits=[in_qubit])
     # plt.show()
