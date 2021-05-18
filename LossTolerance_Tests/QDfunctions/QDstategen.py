@@ -7,8 +7,8 @@ from itertools import product
 import numpy as np
 
 # Allowed_Gates = ['I', 'H', 'X', 'Z', 'Y', 'SX', 'SZ', 'T']
-# Allowed_Gates = ['H', 'SX', 'X', 'I']
-Allowed_Gates = ['H', 'X', 'I']
+Allowed_Gates = ['H', 'SX', 'X', 'I']
+# Allowed_Gates = ['H', 'X', 'I']
 
 H_mat = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
 I_mat = np.identity(2)
@@ -178,153 +178,153 @@ if __name__ == '__main__':
     ####### TEST ALL PULSE SEQUENCES WITH N PHOTONS ########
     ########################################################
 
-    # num_phots = 4
-    #
-    # include_lc = True
-    # input_qubit = 0
-    #
-    # all_rots_lists = product(Allowed_Gates, repeat=num_phots)
-    #
-    # obt_graphs = []
-    # used_rots = []
-    # lc_class_representatives = []
-    #
-    # ## DELETE
-    # step = 0
-    #
-    # for rots_list in all_rots_lists:
-    #     # print('rots_list', rots_list)
-    #     is_graph, adj_mat, applied_hadamard, local_phases = does_qd_give_graph(rots_list)
-    #
-    #     if is_graph:
-    #         # print('FOUND NEW GRAPHS!')
-    #         graph = nx.from_numpy_matrix(adj_mat)
-    #         np.fill_diagonal(adj_mat, 0)
-    #
-    #         if include_lc:
-    #             if not check_isomorphism_with_fixednode(graph, lc_class_representatives, fixed_node=input_qubit):
-    #                 lc_class_representatives.append(graph)
-    #                 full_new_lc_class = lc_equivalence_class(graph, fixed_node=input_qubit)
-    #                 obt_graphs = obt_graphs + full_new_lc_class
-    #                 used_rots = used_rots + [rots_list for i in range(len(full_new_lc_class))]
-    #                 # print('Total class representatives number:', len(lc_class_representatives))
-    #                 # print('Total graph number:', len(obt_graphs))
-    #         else:
-    #             if not arreq_in_list(adj_mat, obt_graphs):
-    #                 # print("Got a NEW graph! Rotation sequence:", rots_list, " Local Z phases:", local_phases, " Applied hadamards: ", applied_hadamard)
-    #                 print(rots_list, local_phases, applied_hadamard)
-    #                 obt_graphs.append(adj_mat)
-    #                 used_rots.append(rots_list)
-    #                 plt.subplot()
-    #                 gstate = GraphState(nx.from_numpy_matrix(adj_mat))
-    #                 gstate.image(with_labels=True)
-    #                 plt.show()
-    # if not include_lc:
-    #     obt_graphs = [nx.from_numpy_matrix(this_A) for this_A in obt_graphs]
-    #
-    #
-    # # plot all obtained graphs
-    # num_graphs = len(obt_graphs)
-    # n = int(np.sqrt(num_graphs))
-    #
-    # n_plot_rows = n
-    # n_plot_cols = num_graphs / n
-    # if not isinstance(n_plot_cols, int):
-    #     n_plot_cols = int(n_plot_cols) + 1
-    #
-    # # for code_ix in range(num_graphs):
-    # print('All obtained', num_graphs, 'graphs:')
-    # for code_ix, this_g in enumerate(obt_graphs):
-    #     plt.subplot(n_plot_rows, n_plot_cols, code_ix + 1)
-    #     GraphState(this_g).image(with_labels=True)
-    #     plt.text(0, 0, str(code_ix)+':\n'+str(used_rots[code_ix]), ha='center')
-    # plt.show()
+    num_phots = 5
+
+    include_lc = True
+    input_qubit = 0
+
+    all_rots_lists = product(Allowed_Gates, repeat=num_phots)
+
+    obt_graphs = []
+    used_rots = []
+    lc_class_representatives = []
+
+    ## DELETE
+    step = 0
+
+    for rots_list in all_rots_lists:
+        # print('rots_list', rots_list)
+        is_graph, adj_mat, applied_hadamard, local_phases = does_qd_give_graph(rots_list)
+
+        if is_graph:
+            # print('FOUND NEW GRAPHS!')
+            graph = nx.from_numpy_matrix(adj_mat)
+            np.fill_diagonal(adj_mat, 0)
+
+            if include_lc:
+                if not check_isomorphism_with_fixednode(graph, lc_class_representatives, fixed_node=input_qubit):
+                    lc_class_representatives.append(graph)
+                    full_new_lc_class = lc_equivalence_class(graph, fixed_node=input_qubit)
+                    obt_graphs = obt_graphs + full_new_lc_class
+                    used_rots = used_rots + [rots_list for i in range(len(full_new_lc_class))]
+                    # print('Total class representatives number:', len(lc_class_representatives))
+                    # print('Total graph number:', len(obt_graphs))
+            else:
+                if not arreq_in_list(adj_mat, obt_graphs):
+                    # print("Got a NEW graph! Rotation sequence:", rots_list, " Local Z phases:", local_phases, " Applied hadamards: ", applied_hadamard)
+                    print(rots_list, local_phases, applied_hadamard)
+                    obt_graphs.append(adj_mat)
+                    used_rots.append(rots_list)
+                    plt.subplot()
+                    gstate = GraphState(nx.from_numpy_matrix(adj_mat))
+                    gstate.image(with_labels=True)
+                    plt.show()
+    if not include_lc:
+        obt_graphs = [nx.from_numpy_matrix(this_A) for this_A in obt_graphs]
+
+
+    # plot all obtained graphs
+    num_graphs = len(obt_graphs)
+    n = int(np.sqrt(num_graphs))
+
+    n_plot_rows = n
+    n_plot_cols = num_graphs / n
+    if not isinstance(n_plot_cols, int):
+        n_plot_cols = int(n_plot_cols) + 1
+
+    # for code_ix in range(num_graphs):
+    print('All obtained', num_graphs, 'graphs:')
+    for code_ix, this_g in enumerate(obt_graphs):
+        plt.subplot(n_plot_rows, n_plot_cols, code_ix + 1)
+        GraphState(this_g).image(with_labels=True)
+        plt.text(0, 0, str(code_ix)+':\n'+str(used_rots[code_ix]), ha='center')
+    plt.show()
 
     ####################################################
     ####### FIND BEST GRAPHS FOR LOSS TOLERANCE ########
     ####################################################
 
-    num_phots = 4
-
-    include_lc = True
-
-    MC_sims = 1000
-    transmission = 0.9
-    in_qubit = 0
-
-    num_best_graphs_to_keep = 6
-
-    ###### Find all graphs ######
-    print("Finding all graphs")
-    all_rots_lists = product(Allowed_Gates, repeat=num_phots)
-    lc_class_representatives = []
-    gen_graphs = []
-    used_rots = []
-    used_adj_mat = []
-    for rots_list in all_rots_lists:
-        is_graph, adj_mat, applied_hadamard, local_phases = does_qd_give_graph(rots_list)
-        if is_graph:
-            graph = nx.from_numpy_matrix(adj_mat)
-            if include_lc:
-                if not check_isomorphism_with_fixednode(graph, lc_class_representatives, fixed_node=in_qubit):
-                    lc_class_representatives.append(graph)
-                    full_new_lc_class = lc_equivalence_class(graph, fixed_node=in_qubit)
-                    gen_graphs = gen_graphs + full_new_lc_class
-                    used_rots = used_rots + [rots_list for i in range(len(full_new_lc_class))]
-            else:
-                if not arreq_in_list(adj_mat, used_adj_mat):
-                    gen_graphs.append(graph)
-                    used_rots.append(rots_list)
-                    used_adj_mat.append(adj_mat)
-
-    graph_states = [GraphState(this_graph) for this_graph in gen_graphs]
-    print("Graph search finished. Number of graphs found:", len(graph_states))
-
-    ########   find best loss tolerant graphs  #########
-    in_qubit = 0
-
-    ########   round 1  #########
-    num_best_codes = min([num_best_graphs_to_keep, len(graph_states)])
-    print_status = False
-
-    print("\nStarting round 1")
-    best_codes = find_best_graphs(graph_states, transmission, MC_sims, print_status, num_best_codes, in_qubit)
-    best_rots = [used_rots[graph_states.index(this_best_code)] for this_best_code in best_codes]
-
-    ########     PLOT BEST CODES     #########
-    codes_labels = list(range(len(best_codes)))
-
-    print("\nDoing plots")
-
-    ########  Plot best codes transmission scans  ########
-    MC_samples = 1000
-    transm_samples = 21
-    transm_list = np.linspace(0, 1, transm_samples)
-
-    for gstate_ix, this_gstate in enumerate(best_codes):
-        trasm_scan_list = trasmission_scan_MCestimate(get_possible_stabs_meas(this_gstate, in_qubit), transm_samples,
-                                                      MC_samples, in_qubit)
-
-        if gstate_ix < 10:
-            plt.plot(transm_list, trasm_scan_list, label=gstate_ix)
-        else:
-            plt.plot(transm_list, trasm_scan_list, linestyle='dashed', label=gstate_ix)
-    plt.plot(transm_list, transm_list, 'k:')
-    plt.legend()
-    plt.show()
-
-    # plot all best graphs
-
-    n = int(np.sqrt(num_best_codes))
-
-    n_plot_rows = n
-    n_plot_cols = num_best_codes / n
-    if not isinstance(n_plot_cols, int):
-        n_plot_cols = int(n_plot_cols) + 1
-
-    for code_ix in range(num_best_codes):
-        plt.subplot(n_plot_rows, n_plot_cols, code_ix + 1)
-        best_codes[code_ix].image(with_labels=True)
-        plt.text(0, 0, str(code_ix) + ':\n' + str(best_rots[code_ix]), ha='center')
-    plt.show()
+    # num_phots = 4
+    #
+    # include_lc = True
+    #
+    # MC_sims = 1000
+    # transmission = 0.9
+    # in_qubit = 0
+    #
+    # num_best_graphs_to_keep = 6
+    #
+    # ###### Find all graphs ######
+    # print("Finding all graphs")
+    # all_rots_lists = product(Allowed_Gates, repeat=num_phots)
+    # lc_class_representatives = []
+    # gen_graphs = []
+    # used_rots = []
+    # used_adj_mat = []
+    # for rots_list in all_rots_lists:
+    #     is_graph, adj_mat, applied_hadamard, local_phases = does_qd_give_graph(rots_list)
+    #     if is_graph:
+    #         graph = nx.from_numpy_matrix(adj_mat)
+    #         if include_lc:
+    #             if not check_isomorphism_with_fixednode(graph, lc_class_representatives, fixed_node=in_qubit):
+    #                 lc_class_representatives.append(graph)
+    #                 full_new_lc_class = lc_equivalence_class(graph, fixed_node=in_qubit)
+    #                 gen_graphs = gen_graphs + full_new_lc_class
+    #                 used_rots = used_rots + [rots_list for i in range(len(full_new_lc_class))]
+    #         else:
+    #             if not arreq_in_list(adj_mat, used_adj_mat):
+    #                 gen_graphs.append(graph)
+    #                 used_rots.append(rots_list)
+    #                 used_adj_mat.append(adj_mat)
+    #
+    # graph_states = [GraphState(this_graph) for this_graph in gen_graphs]
+    # print("Graph search finished. Number of graphs found:", len(graph_states))
+    #
+    # ########   find best loss tolerant graphs  #########
+    # in_qubit = 0
+    #
+    # ########   round 1  #########
+    # num_best_codes = min([num_best_graphs_to_keep, len(graph_states)])
+    # print_status = False
+    #
+    # print("\nStarting round 1")
+    # best_codes = find_best_graphs(graph_states, transmission, MC_sims, print_status, num_best_codes, in_qubit)
+    # best_rots = [used_rots[graph_states.index(this_best_code)] for this_best_code in best_codes]
+    #
+    # ########     PLOT BEST CODES     #########
+    # codes_labels = list(range(len(best_codes)))
+    #
+    # print("\nDoing plots")
+    #
+    # ########  Plot best codes transmission scans  ########
+    # MC_samples = 1000
+    # transm_samples = 21
+    # transm_list = np.linspace(0, 1, transm_samples)
+    #
+    # for gstate_ix, this_gstate in enumerate(best_codes):
+    #     trasm_scan_list = trasmission_scan_MCestimate(get_possible_stabs_meas(this_gstate, in_qubit), transm_samples,
+    #                                                   MC_samples, in_qubit)
+    #
+    #     if gstate_ix < 10:
+    #         plt.plot(transm_list, trasm_scan_list, label=gstate_ix)
+    #     else:
+    #         plt.plot(transm_list, trasm_scan_list, linestyle='dashed', label=gstate_ix)
+    # plt.plot(transm_list, transm_list, 'k:')
+    # plt.legend()
+    # plt.show()
+    #
+    # # plot all best graphs
+    #
+    # n = int(np.sqrt(num_best_codes))
+    #
+    # n_plot_rows = n
+    # n_plot_cols = num_best_codes / n
+    # if not isinstance(n_plot_cols, int):
+    #     n_plot_cols = int(n_plot_cols) + 1
+    #
+    # for code_ix in range(num_best_codes):
+    #     plt.subplot(n_plot_rows, n_plot_cols, code_ix + 1)
+    #     best_codes[code_ix].image(with_labels=True)
+    #     plt.text(0, 0, str(code_ix) + ':\n' + str(best_rots[code_ix]), ha='center')
+    # plt.show()
 
