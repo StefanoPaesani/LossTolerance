@@ -49,7 +49,7 @@ def get_possible_stabs_meas(gstate, in_qubit=0):
 ##### MONTE CARLO DECODING TEST ###
 ###################################
 
-def MC_decoding(poss_stabs_list, transmission, in_qubit=0, printing=False):
+def MC_decoding(poss_stabs_list, transmission, in_qubit=0, printing=False, provide_measures=False):
     # Initialize which qubits have been successfully or insuccessfully measured
     meas_out = False  # tracks if the output qubit for current strategy has already been measured or not
     out_qubit_ix = in_qubit  # tracks the index of the current output qubit
@@ -156,9 +156,15 @@ def MC_decoding(poss_stabs_list, transmission, in_qubit=0, printing=False):
 
     # see if we succeded or failed
     if on_track:
-        return True
+        if provide_measures:
+            return True, (tuple(measured_qubits), tuple(lost_qubits))
+        else:
+            return True
     else:
-        return False
+        if provide_measures:
+            return False, (tuple(measured_qubits), tuple(lost_qubits))
+        else:
+            return False
 
 
 def succ_prob_MCestimate(poss_stabs_list, transmission, MC_samples=1000, in_qubit=0):
@@ -291,8 +297,8 @@ if __name__ == '__main__':
     # gstate = GraphState(graph)
 
     ### ring graph
-    # graph = gen_ring_graph(5)
-    # gstate = GraphState(graph)
+    graph = gen_ring_graph(5)
+    gstate = GraphState(graph)
 
     ### line graph L543021 with no loss-tolerance
     # graph_nodes = list(range(6))
@@ -300,9 +306,9 @@ if __name__ == '__main__':
     # gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
 
     ### Graph equivalent to L543021 with loss-tolerance
-    graph_nodes = list(range(6))
-    graph_edges = [(5, 4), (4, 3), (4, 0), (4, 2), (0, 3), (3, 2), (2, 1)]
-    gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
+    # graph_nodes = list(range(6))
+    # graph_edges = [(5, 4), (4, 3), (4, 0), (4, 2), (0, 3), (3, 2), (2, 1)]
+    # gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
 
     ## get list of possible measurements to encode & decode the state
     poss_stabs_list = get_possible_stabs_meas(gstate, in_qubit)
@@ -311,36 +317,36 @@ if __name__ == '__main__':
     ################################### SINGLE TEST ##############################
     ##############################################################################
 
-    ## define channel transmission
-    # transmission = 0.8
-    # decoding_succ = MC_decoding(poss_stabs_list, transmission, in_qubit, printing=True)
-    #
-    # ## see if we succeded or failed
-    # if decoding_succ:
-    #     print("Succeded :)")
-    # else:
-    #     print("Failed :(")
+    # define channel transmission
+    transmission = 0.8
+    decoding_succ = MC_decoding(poss_stabs_list, transmission, in_qubit, printing=True)
+
+    ## see if we succeded or failed
+    if decoding_succ:
+        print("Succeded :)")
+    else:
+        print("Failed :(")
 
     ##################################################################
     ################# TRANSMISSION SCAN ##############################
     ##################################################################
 
-    eff_list_num = 21
-    MC_sims = 1000
-
-    succ_prob_list = trasmission_scan_MCestimate(poss_stabs_list, eff_list_num, MC_sims, in_qubit)
-
-    eff_list = np.linspace(0, 1, eff_list_num)
-    plt.plot(eff_list, succ_prob_list, label='LT qubit')
-    if branching is not None:
-        plt.plot(eff_list, [p_analyt_tree(t, branching) for t in eff_list], 'b:', linewidth=2, label='LT tree-theo')
-    plt.plot(eff_list, eff_list, 'k-', label='direct transm.')
-    plt.legend()
-    plt.show()
-
-    plt.subplot()
-    gstate.image(with_labels=True)
-    plt.show()
+    # eff_list_num = 21
+    # MC_sims = 5000
+    #
+    # succ_prob_list = trasmission_scan_MCestimate(poss_stabs_list, eff_list_num, MC_sims, in_qubit)
+    #
+    # eff_list = np.linspace(0, 1, eff_list_num)
+    # plt.plot(eff_list, succ_prob_list, label='LT qubit')
+    # if branching is not None:
+    #     plt.plot(eff_list, [p_analyt_tree(t, branching) for t in eff_list], 'b:', linewidth=2, label='LT tree-theo')
+    # plt.plot(eff_list, eff_list, 'k-', label='direct transm.')
+    # plt.legend()
+    # plt.show()
+    #
+    # plt.subplot()
+    # gstate.image(with_labels=True)
+    # plt.show()
 
     #######################################################################################
     ################# TRANSMISSION SCAN - ALL N-Qubit graphs ##############################
