@@ -2,6 +2,7 @@ import networkx as nx
 
 # TODO: delete matplotlib from here
 import matplotlib.pyplot as plt
+# from lc_equivalence import check_LCequiv
 from CodesFunctions.lc_equivalence import check_LCequiv
 
 
@@ -148,24 +149,24 @@ if __name__ == '__main__':
     # plt.show()
 
     ################# TEST IF GRAPHS ARE LOCALLY EQUIVALENT #####################
-    all_graphs = []
-
-    mygraph0 = gen_ring_graph(5)
-    all_graphs.append(mygraph0)
-
-    mygraph = local_complementation(mygraph0, 0)
-    all_graphs.append(mygraph)
-
-    mygraph = gen_empty_graph(5)
-    all_graphs.append(mygraph)
-
-    lc_equiv_list = [check_LCequiv(mygraph0, elem, return_all=False)[0] for elem in all_graphs]
-    print('lc_equiv_list', lc_equiv_list)
-
-    for graph_ix, this_graph in enumerate(all_graphs):
-        plt.subplot(1, len(all_graphs), graph_ix + 1)
-        nx.draw(this_graph, with_labels=True)
-    plt.show()
+    # all_graphs = []
+    #
+    # mygraph0 = gen_ring_graph(5)
+    # all_graphs.append(mygraph0)
+    #
+    # mygraph = local_complementation(mygraph0, 0)
+    # all_graphs.append(mygraph)
+    #
+    # mygraph = gen_empty_graph(5)
+    # all_graphs.append(mygraph)
+    #
+    # lc_equiv_list = [check_LCequiv(mygraph0, elem, return_all=False)[0] for elem in all_graphs]
+    # print('lc_equiv_list', lc_equiv_list)
+    #
+    # for graph_ix, this_graph in enumerate(all_graphs):
+    #     plt.subplot(1, len(all_graphs), graph_ix + 1)
+    #     nx.draw(this_graph, with_labels=True)
+    # plt.show()
 
     ################# FIND FULL LOCAL EQUIVALENCE CLASS #################
 
@@ -173,31 +174,31 @@ if __name__ == '__main__':
     # # mygraph0 = gen_tree_graph([2, 2])
     # # mygraph0 = gen_square_lattice_graph(3, 2)
     # # mygraph0 = gen_linear_graph(4)
-    # mygraph0 = gen_ring_graph(5)
-    #
-    # in_node = 0
-    #
-    # print('Calculating LC class')
-    # # lc_class = lc_equivalence_class_full(mygraph0)
-    # # lc_class = lc_equivalence_class(mygraph0)
+    mygraph0 = gen_ring_graph(5)
+
+    in_node = 0
+
+    print('Calculating LC class')
+    # lc_class = lc_equivalence_class_full(mygraph0)
+    lc_class = lc_equivalence_class(mygraph0)
     # lc_class = lc_equivalence_class(mygraph0, fixed_node=in_node)
-    #
-    # num_graphs = len(lc_class)
-    # print('Found', num_graphs, 'graphs in the equivalence class')
-    #
-    # # plot all best graphs
-    # print('Plotting all graphs in LC class')
-    # n = int(np.sqrt(num_graphs))
-    #
-    # n_plot_rows = n
-    # n_plot_cols = num_graphs / n
-    # if not isinstance(n_plot_cols, int):
-    #     n_plot_cols = int(n_plot_cols) + 1
-    #
-    #
-    #
-    # for graph_ix, G in enumerate(lc_class):
-    #     plt.subplot(n_plot_rows, n_plot_cols, graph_ix + 1)
-    #     color_map = ['red' if this_node == in_node else 'blue' for this_node in G.nodes]
-    #     nx.draw(G, node_color=color_map, with_labels=True)
-    # plt.show()
+
+    num_graphs = len(lc_class)
+    print('Found', num_graphs, 'graphs in the equivalence class')
+
+    # plot all best graphs
+    print('Plotting all graphs in LC class')
+    n = int(np.sqrt(num_graphs))
+
+    n_plot_rows = n
+    n_plot_cols = num_graphs / n
+    if not isinstance(n_plot_cols, int):
+        n_plot_cols = int(n_plot_cols) + 1
+
+
+
+    for graph_ix, G in enumerate(lc_class):
+        plt.subplot(n_plot_rows, n_plot_cols, graph_ix + 1)
+        color_map = ['red' if this_node == in_node else 'blue' for this_node in G.nodes]
+        nx.draw(G, node_color=color_map, with_labels=True)
+    plt.show()

@@ -31,7 +31,7 @@ def get_possible_stabs_meas(gstate, in_qubit=0):
             ## checks which qubits have anticommuting Paulis
             anticomm_qbts = [qbt for qbt in range(num_qubits) if single_qubit_commute(stab1, stab2, qbt)]
 
-            ## checks that there are exactly two qubits with anticommuting Paulis: the input and the output
+            ## checks that there are exactly two qubits with anticommuting Paulis: the input and an output
             if len(anticomm_qbts) == 2 and in_qubit in anticomm_qbts:
                 measurement = [stab1[qbt] if stab1[qbt] is not 'I' else stab2[qbt] for qbt in range(num_qubits)]
                 other_meas_qubits = [qbt for qbt in range(num_qubits)
@@ -229,7 +229,7 @@ def filter_lost_qubit(poss_stabs_list, lost_qbt_ix):
 def filter_measured_qubit_fixed_basis(poss_stabs_list, meas_config, meas_qbt_ix):
     fixed_basis = meas_config[3][meas_qbt_ix]
     return [these_stabs for these_stabs in poss_stabs_list if
-            (these_stabs[0][1] != meas_qbt_ix and these_stabs[3][meas_qbt_ix] == fixed_basis)]
+            (these_stabs[0][1] != meas_qbt_ix and (these_stabs[3][meas_qbt_ix] in [fixed_basis, 'I']))]
 
 
 # keeps only the possible strategies in which the meas_qbt_ix is an output or it is not measured

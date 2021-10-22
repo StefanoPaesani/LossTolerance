@@ -47,32 +47,57 @@ def succprob_poly_withMC(graph, transm=0.9, MC_samples=1000, t_sampl_func=None, 
 
     return dict(Counter(polynom_all_exponents))
 
-#### Function that converts the polynomial expression into the success probability as a function of transmission t
-def probsucc_poly_fromexpress(t, poly_express):
-    return sum([poly_express[exps]*(t**exps[0])*((1-t)**exps[1]) for exps in poly_express])
 
-#### Function that estimates the LT threshold from a given polynomial expression
-def LTthresold_from_polyexpress(poly_express, bounds=(0.49, 0.78)):
-    temp_thresh = minimize(lambda x: np.abs(probsucc_poly_fromexpress(x, poly_express)-x),
-                            np.array([bounds[0]]), bounds=[bounds])['x'][0]
-    if temp_thresh in bounds:
+# Function that converts the polynomial expression into the success probability as a function of transmission t
+def probsucc_poly_fromexpress(t, poly_express):
+    return sum([poly_express[exps] * (t ** exps[0]) * ((1 - t) ** exps[1]) for exps in poly_express])
+
+
+# Function that estimates the LT threshold from a given polynomial expression
+def LTthresold_from_polyexpress(poly_express):
+    # New approach based on inverting the polynomial (given that it is always monotone) - Ste 24/09/21
+    temppoly = np.poly1d([0])
+
+    for exp in poly_express:
+        temppoly += poly_express[exp] * (np.poly1d([1, 0]) ** exp[0]) * (np.poly1d([-1, 1]) ** exp[1])
+
+    all_roots = (temppoly - np.poly1d([1, 0])).roots
+    real_roots = all_roots[np.isreal(all_roots)]
+    real_roots = all_roots[(0.501 < all_roots) & (all_roots < 0.99)]
+    if len(real_roots) == 0:
         return 1.
     else:
-        return temp_thresh
+        return np.real(real_roots[0])
 
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
-    in_qubit=0
-
-    ### ring graph
-    # graph = gen_ring_graph(5)
-    # gstate = GraphState(graph)
+    in_qubit = 0
 
     ### random graph
-    graph = gen_random_connected_graph(7)
+    # graph = gen_random_connected_graph(6)
+    # gstate = GraphState(graph)
+
+    ### ring graph
+    graph = gen_ring_graph(5)
     gstate = GraphState(graph)
+
+    ### 5-qubit Shor-code graph
+    # graph = nx.Graph()
+    # nodes = list(range(6))
+    # graph.add_nodes_from(nodes)
+    # graph.add_edges_from(product([0], nodes[1:]))
+    # graph.add_edges_from([(nodes[i], nodes[i + 1]) for i in range(1, 5)] + [(5, 1)])
+    # gstate = GraphState(graph)
+
+    ### Cascaded 3-rings
+    # graph = nx.Graph()
+    # nodes = list(range(7))
+    # graph.add_nodes_from(nodes)
+    # graph.add_edges_from([(0, 2), (0, 1), (1, 2), (1, 6), (1, 5), (5, 6), (2, 3), (2, 4), (3, 4)])
+    # gstate = GraphState(graph)
+
 
     ## get list of possible measurements to encode & decode the state
     poss_stabs_list = get_possible_stabs_meas(gstate, in_qubit)
@@ -97,7 +122,7 @@ if __name__ == '__main__':
     ######   ESTIMATE ANALYTICAL SUCCESS PROBABILITY FOR GRAPH  ##################
     ##############################################################################
 
-    MC_samples_meas = 100
+    MC_samples_meas = 1000
 
     transm = 0.82
 
@@ -105,7 +130,7 @@ if __name__ == '__main__':
     # sampl_func = lambda t: transm   # for constant transmission value
     sampl_func = lambda t: np.random.normal(transm, 0.06)  # for Gaussianly distribured values
 
-    polynomial_expression = succprob_poly_withMC(graph, 0.9, MC_samples_meas, sampl_func, in_qubit, printing=False)
+    polynomial_expression = succprob_poly_withMC(graph, transm, MC_samples_meas, sampl_func, in_qubit, printing=False)
     print('polynomial_expression:', polynomial_expression)
 
     ## calculate threshold according to the analytical success probability estimate
@@ -123,14 +148,10 @@ if __name__ == '__main__':
     gstate.image(input_qubits=[in_qubit])
     plt.show()
 
-
     t_list = np.linspace(0, 1, 100)
     # plt.plot(eff_list, MCsucc_prob_list, 'r.', label='MC estim.')
     plt.plot(t_list, probsucc_poly_fromexpress(t_list, polynomial_expression), c='blue', label='Analyt.')
+
     plt.plot(t_list, t_list, 'k:', label='Direct')
     plt.legend()
     plt.show()
-
-
-
-
