@@ -62,7 +62,8 @@ def cascade_prob_full(t, N_layers, code_prob_expr_full, code_prob_expr_x, code_p
 def probsucc_poly_fromexpress_conc(t_xi, t_yi, t_zi, poly_express):
     t_xyi = max(t_xi, t_yi)
     return sum(
-        [poly_express[term] *
+        [poly_express[term] * (0 if any([term[1]>0, term[4]>0, term[7]>0]) else 1)*
+
          (t_xyi**term[0]) *
          ((1-t_xyi)**term[2]) *
 
@@ -204,51 +205,51 @@ if __name__ == '__main__':
     #################################################################
 
 
+    ##### Plots
+    gstate.image(input_qubits=[in_qubit])
+    plt.show()
 
+    t_list = np.linspace(0, 1, 30)
 
-    # ##### Plots
-    # gstate.image(input_qubits=[in_qubit])
-    # plt.show()
-    #
-    # t_list = np.linspace(0, 1, 30)
-    #
-    # num_layers_list = [0, 1]
-    # # num_layers_list = [0, 1, 2, 15]
-    #
-    # plt.plot(t_list, t_list, 'k:', label='Direct')
-    # for N_layers in num_layers_list:
-    #     this_code_prob_list = [
-    #         conc_prob_full(t, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z)
-    #         for t in t_list]
-    #     plt.plot(t_list, this_code_prob_list, label=str(N_layers))
+    num_layers_list = [0, 1, 2, 3, 4]
+    # num_layers_list = [0, 1, 2, 15]
 
-    # ## code with t_xyi=t_zi=1
-    # this_code_prob_list = [
-    #     probsucc_poly_fromexpress_conc(t, t, t, code_prob_expr_full) for t
-    #     in t_list]
-    # plt.plot(t_list, this_code_prob_list, 'k--', label='Asymptotic')
-    #
-    # plt.legend()
-    # plt.show()
+    plt.plot(t_list, t_list, 'k:', label='Direct')
+    for N_layers in num_layers_list:
+        this_code_prob_list = [
+            conc_prob_full(t, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z)
+            for t in t_list]
+        plt.plot(t_list, this_code_prob_list, label=str(N_layers))
+
+    ## code with t_xyi=t_zi=1
+    # # this_code_prob_list = [
+    # #     probsucc_poly_fromexpress_conc(t, t, t, code_prob_expr_full) for t
+    # #     in t_list]
+    # # plt.plot(t_list, this_code_prob_list, 'k--', label='Asymptotic')
+
+    plt.legend()
+    plt.show()
 
 
     #################################################################
     ############################# OTHER TESTS #######################
     #################################################################
 
-    t_list = np.linspace(0, 1, 30)
-
-    plt.plot(t_list, t_list, 'k:', label='Direct')
-
-    casc_code_prob_list = [
-        probsucc_poly_fromexpress_casc(t, 1, 0, code_prob_expr_full) for t
-        in t_list]
-    plt.plot(t_list, casc_code_prob_list, 'r', label='Cascaded')
-
-    conc_code_prob_list = [
-        probsucc_poly_fromexpress_conc(t, t, t, code_prob_expr_full) for t
-        in t_list]
-    plt.plot(t_list, conc_code_prob_list, 'b', label='Concatenated')
-
-    plt.legend()
+    # t_list = np.linspace(0, 1, 30)
+    #
+    # plt.plot(t_list, t_list, 'k:', label='Direct')
+    # print(code_prob_expr_full)
+    #
+    #
+    # casc_code_prob_list = [
+    #     probsucc_poly_fromexpress_casc(t, 1, 0, code_prob_expr_full) for t
+    #     in t_list]
+    # plt.plot(t_list, casc_code_prob_list, 'r', label='Cascaded')
+    #
+    # conc_code_prob_list = [
+    #     probsucc_poly_fromexpress_conc(t, t, t, code_prob_expr_full) for t
+    #     in t_list]
+    # plt.plot(t_list, conc_code_prob_list, 'b', label='Concatenated')
+    #
+    # plt.legend()
     plt.show()
