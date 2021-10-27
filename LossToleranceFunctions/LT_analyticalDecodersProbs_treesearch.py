@@ -1,4 +1,3 @@
-from LossToleranceFunctions.LT_Decoders_Classes import LT_FullDecoder, LT_IndMeasDecoder
 from copy import deepcopy
 from collections import Counter
 
@@ -10,7 +9,7 @@ from collections import Counter
 
 def get_LTdecoder_succpob_treesearch(LTdecoder, poss_meas_outcomes=None):
     if poss_meas_outcomes is None:
-        poss_meas_outcomes = {'X': ['X', 'Z', 'na'], 'Y': ['X', 'Z', 'na'], 'Z': ['Z', 'na']}
+        poss_meas_outcomes = {'X': ['X', 'Z', 'na'], 'Y': ['X', 'Z', 'na'], 'Z': ['Z', 'na'], 'XYout': ['XYout', 'Z', 'na'],}
     list_running_decs = [LTdecoder]
     list_finished_decs = []
 
@@ -41,7 +40,7 @@ def get_LTdecoder_succpob_treesearch(LTdecoder, poss_meas_outcomes=None):
                         temp_dec = deepcopy(this_dec)
                         if meas_pauli == 'Z':
                             temp_dec.update_decoder_Zmeas(this_out)
-                        elif meas_pauli in ['X', 'Y']:
+                        elif meas_pauli in ['X', 'Y', 'XYout']:
                             temp_dec.update_decoder_XYmeas(this_out)
 
                         if temp_dec.finished:
@@ -53,22 +52,34 @@ def get_LTdecoder_succpob_treesearch(LTdecoder, poss_meas_outcomes=None):
         list_finished_decs = list_finished_decs + temp_finish_decs
 
     successful_decoders = [this_dec for this_dec in list_finished_decs if this_dec.on_track]
-    succ_prob_poly_terms = [(len(this_dec.mXY_XY_qbts), len(this_dec.mXY_Z_qbts), len(this_dec.mXY_na_qbts),
+    succ_prob_poly_terms = [(len(this_dec.mOUT_OUT_qbts), len(this_dec.mOUT_Z_qbts), len(this_dec.mOUT_na_qbts),
+                             len(this_dec.mX_X_qbts), len(this_dec.mX_Z_qbts), len(this_dec.mX_na_qbts),
+                             len(this_dec.mY_Y_qbts), len(this_dec.mY_Z_qbts), len(this_dec.mY_na_qbts),
                              len(this_dec.mZ_Z_qbts), len(this_dec.mZ_na_qbts)) for this_dec in successful_decoders]
     return dict(Counter(succ_prob_poly_terms))
 
 
 # Function that converts the polynomial expression into the success probability as a function of:
 # transmission t, and indirect measurement probabilities p_xyi, p_zi
-# The terms in the expression are in the order: (XY_XY, XY_Z, XY_na, Z_Z, Z_na)
-def probsucc_poly_fromexpress(t, t_xyi, t_zi, poly_express):
+# The terms in the expression are in the order: (OUT_OUT, OUT_Z, OUT_na, X_X, X_Z, X_na, Y_Y, Y_Z, Y_na, Z_Z, Z_na)
+def probsucc_poly_fromexpress(t, t_xi, t_yi, t_zi, poly_express):
+    t_xyi = max(t_xi, t_yi)
     return sum(
         [poly_express[term] *
          ((t*t_xyi)**term[0]) *
          (((1-t)*t_zi)**term[1]) *
          (((1-t)*(1-t_zi) + t*(1-t_xyi))**term[2]) *
-         ((t+(1-t)*t_zi)**term[3]) *
-         ((1-t-(1-t)*t_zi)**term[4])
+
+         ((t * t_xi) ** term[3]) *
+         (((1 - t) * t_zi) ** term[4]) *
+         (((1 - t) * (1 - t_zi) + t * (1 - t_xi)) ** term[5]) *
+
+         ((t * t_yi) ** term[6]) *
+         (((1 - t) * t_zi) ** term[7]) *
+         (((1 - t) * (1 - t_zi) + t * (1 - t_yi)) ** term[8]) *
+
+         ((t+(1-t)*t_zi)**term[9]) *
+         ((1-t-(1-t)*t_zi)**term[10])
          for term in poly_express])
 
 
@@ -81,6 +92,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from CodesFunctions.graphs import *
     import networkx as nx
+    from LossToleranceFunctions.LT_Decoders_Classes import LT_FullDecoder, LT_IndMeasDecoder
 
     from itertools import chain
 
@@ -108,15 +120,15 @@ if __name__ == '__main__':
     # gstate = GraphState(graph)
 
     ### ring graph
-    graph = gen_ring_graph(5)
+    graph = gen_ring_graph(3)
     gstate = GraphState(graph)
 
     ##############################################################
     ################## TEST FULL DECODER #########################
     ##############################################################
 
-    decod0 = LT_FullDecoder(gstate, in_qubit)
-    # decod0 = LT_IndMeasDecoder(gstate, 'X', in_qubit)
+    # decod0 = LT_FullDecoder(gstate, in_qubit)
+    decod0 = LT_IndMeasDecoder(gstate, 'Y', in_qubit)
 
     succ_prob_poly_terms = get_LTdecoder_succpob_treesearch(decod0)
 
@@ -127,9 +139,10 @@ if __name__ == '__main__':
     plt.show()
 
     t_list = np.linspace(0, 1, 100)
-    used_t_xyi = 1.
+    used_t_xi = 1.
+    used_t_yi = 1.
     used_t_zi = 0.
-    succ_probs = [probsucc_poly_fromexpress(t, used_t_xyi, used_t_zi, succ_prob_poly_terms) for t in t_list]
+    succ_probs = [probsucc_poly_fromexpress(t, used_t_xi, used_t_yi, used_t_zi, succ_prob_poly_terms) for t in t_list]
     plt.plot(t_list, succ_probs, c='blue', label='Analyt.')
 
     plt.plot(t_list, t_list, 'k:', label='Direct')

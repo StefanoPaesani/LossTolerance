@@ -18,11 +18,17 @@ class LT_FullDecoder(object):
 
     'measured_qubits': List of qubits that have already been measured.
     'lost_qubits': List of qubits that have already been measured to be lost.
-    'mXY_XY_qbts': List of qubits in which a X or Y measure has been tried, and a X or Y outcome has been obtained.
-    'mXY_Z_qbts': List of qubits in which a X or Y measure has been tried, and an indirect Z outcome was obtained.
-    'mXY_na_qbts': List of qubits in which a X or Y measure has been tried, and no outcome was obtained.
+    'mOUT_OUT_qbts': List of qubits in which an arbitrary measure has been tried, successfully.
+    'mOUT_Z_qbts': List of qubits in which an arbitrary measure has been tried, unsuccessfully but an indirect Z outcome was obtained
+    'mOUT_na_qbts': List of qubits in which an arbitrary measure has been tried, and no outcome was obtained
+    'mX_X_qbts': List of qubits in which a X measure has been tried, and a X outcome has been obtained.
+    'mX_Z_qbts': List of qubits in which a X measure has been tried, and an indirect Z outcome was obtained.
+    'mX_na_qbts': List of qubits in which a X measure has been tried, and no outcome was obtained.
+    'mY_Y_qbts': List of qubits in which a Y measure has been tried, and a Y outcome has been obtained.
+    'mY_Z_qbts': List of qubits in which a Y measure has been tried, and an indirect Z outcome was obtained.
+    'mY_na_qbts': List of qubits in which a Y measure has been tried, and no outcome was obtained.
     'mZ_Z_qbts': List of qubits in which a Z measure has been tried, and a Z outcome was obtained.
-    'mXY_na_qbts': List of qubits in which a Z measure has been tried, and no outcome was obtained.
+    'mZ_na_qbts': List of qubits in which a Z measure has been tried, and no outcome was obtained.
 
     'poss_outs_dict': dictionary that identifies which output qubits are better for current strategy.
     'new_strategy': True if a new strategy needs to be initialized (eg. because the previous one has failed due to loss).
@@ -37,9 +43,15 @@ class LT_FullDecoder(object):
         self.out_qubit_ix = in_qubit  # tracks the index of the current output qubit
         self.meas_qubit_ix = 0  # Index of next qubit to be measured
         self.meas_type = 'I'  # Pauli operator to be measured next
-        self.mXY_XY_qbts = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in XY
-        self.mXY_Z_qbts = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in (indirect) Z measurement
-        self.mXY_na_qbts = []  # tracks qubits that we tried to measure in XY, and obtained no outcome
+        self.mOUT_OUT_qbts = []  # tracks qubits that we tried to measure in arbitrary bases, and succeded
+        self.mOUT_Z_qbts = []  # tracks qubits that we tried to measure in arbitrary bases, failed but obtained an outcome in (indirect) Z measurement
+        self.mOUT_na_qbts = []  # tracks qubits that we tried to measure in arbitrary bases, and obtained no outcome
+        self.mX_X_qbts = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in XY
+        self.mX_Z_qbts = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in (indirect) Z measurement
+        self.mX_na_qbts = []  # tracks qubits that we tried to measure in XY, and obtained no outcome
+        self.mY_Y_qbts = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in XY
+        self.mY_Z_qbts = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in (indirect) Z measurement
+        self.mY_na_qbts = []  # tracks qubits that we tried to measure in XY, and obtained no outcome
         self.mZ_Z_qbts = []  # tracks qubits that we tried to measure in Z, and obtained an outcome in Z (direct or indirect)
         self.mZ_na_qbts = []  # tracks qubits that we tried to measure in Z, and obtained no outcome
         self.measured_qubits = []  # tracks which qubits have been already measured
@@ -63,9 +75,15 @@ class LT_FullDecoder(object):
         self.out_qubit_ix = in_qubit
         self.meas_qubit_ix = 0
         self.meas_type = 'I'
-        self.mXY_XY_qbts = []
-        self.mXY_Z_qbts = []
-        self.mXY_na_qbts = []
+        self.mOUT_OUT_qbts = []
+        self.mOUT_Z_qbts = []
+        self.mOUT_na_qbts = []
+        self.mX_X_qbts = []
+        self.mX_Z_qbts = []
+        self.mX_na_qbts = []
+        self.mY_Y_qbts = []
+        self.mY_Z_qbts = []
+        self.mY_na_qbts = []
         self.mZ_Z_qbts = []
         self.mZ_na_qbts = []
         self.measured_qubits = []
@@ -93,15 +111,16 @@ class LT_FullDecoder(object):
 
                 ## checks that there are exactly two qubits with anticommuting Paulis: the input and an output
                 if len(anticomm_qbts) == 2 and self.in_qubit in anticomm_qbts:
-                    measurement = [stab1[qbt] if stab1[qbt] is not 'I' else stab2[qbt] for qbt in range(num_qubits)]
+                    measurement = [stab1[qbt] if stab1[qbt] != 'I' else stab2[qbt] for qbt in range(num_qubits)]
                     other_meas_qubits = [qbt for qbt in range(num_qubits)
-                                         if measurement[qbt] is not 'I' and qbt not in anticomm_qbts]
+                                         if measurement[qbt] != 'I' and qbt not in anticomm_qbts]
                     meas_weight = num_qubits - measurement.count('I')
-                    Z_weight = measurement.count('Z')/(meas_weight+1)
-                    poss_stabs_list.append([anticomm_qbts, other_meas_qubits, [stab1, stab2], measurement, meas_weight, Z_weight])
+                    Z_weight = measurement.count('Z') / (meas_weight + 1)
+                    poss_stabs_list.append(
+                        [anticomm_qbts, other_meas_qubits, [stab1, stab2], measurement, meas_weight, Z_weight])
                     # print(stab1, stab2, anticomm_qbts, other_meas_qubits, measurement, meas_weight)
         ### order them such that we always prefer mstrategies with smaller weight, and with more Zs in the non-trivial paulis.
-        poss_stabs_list.sort(key=lambda x: x[4]-x[5])
+        poss_stabs_list.sort(key=lambda x: x[4] - x[5])
         return poss_stabs_list
 
     ###### Strategy decisions functions
@@ -137,7 +156,7 @@ class LT_FullDecoder(object):
         if not self.meas_out:
             # start strategy by trying to measure the output qubit
             self.meas_qubit_ix = self.meas_config[0][1]
-            self.meas_type = 'X'
+            self.meas_type = 'XYout'
             if self.printing:
                 print("measuring out qubit", self.meas_qubit_ix)
         else:
@@ -156,7 +175,8 @@ class LT_FullDecoder(object):
                 if len(qubits_to_meas_nooutputs) > 0:
                     # if there are safe options, pick one of these (starting from the largest one, inspired by
                     # trees)
-                    qubits_to_measure_in_XYs = [x for x in qubits_to_meas_nooutputs if self.meas_config[3][x] in ['X', 'Y']]
+                    qubits_to_measure_in_XYs = [x for x in qubits_to_meas_nooutputs if
+                                                self.meas_config[3][x] in ['X', 'Y']]
                     # Qubits to be measured in XYs are measured first, similarly as for outputs.
                     if len(qubits_to_measure_in_XYs) > 0:
                         self.meas_qubit_ix = qubits_to_measure_in_XYs[-1]
@@ -196,12 +216,18 @@ class LT_FullDecoder(object):
 
     ##### Measurement Functions
 
-    def get_probs_XY_meas(self, transm, t_xyi=1, t_zi=0):
+    def get_probs_XY_meas(self, transm, t_xi=1, t_yi=1, t_zi=0):
+        if self.meas_type == 'XYout':
+            t_xyi = max(t_xi, t_yi)
+        elif self.meas_type == 'X':
+            t_xyi = t_xi
+        elif self.meas_type == 'Y':
+            t_xyi = t_yi
         p_XY_XY = transm * t_xyi  # Prob. to measure in X (Y) and obtain  X (Y) outcome.
         p_XY_Z = (1 - transm) * t_zi  # Prob. to measure in X (Y), fail direct meas, but obtain indir. Z outcome
         p_XY_na = 1 - p_XY_XY - p_XY_Z  # transm * (1 - t_xyi) + (1 - transm) * (1 - t_xyi)
         # Prob. to measure in X (Y) and obtain no outcome (lost)
-        return ['XY', 'Z', 'na'], [p_XY_XY, p_XY_Z, p_XY_na]
+        return [self.meas_type, 'Z', 'na'], [p_XY_XY, p_XY_Z, p_XY_na]
 
     def get_probs_Z_meas(self, transm, t_zi=0):
         p_Z_Z = transm + (
@@ -210,11 +236,16 @@ class LT_FullDecoder(object):
         return ['Z', 'na'], [p_Z_Z, p_Z_na]
 
     def update_decoder_XYmeas(self, outcome_basis):
-        if outcome_basis in ['X', 'Y', 'XY']:
+        if outcome_basis in ['X', 'Y', 'XYout']:
             if self.printing:
                 print("qubit is X or Y FULLY MEASURED")
             self.measured_qubits.append(self.meas_qubit_ix)
-            self.mXY_XY_qbts.append(self.meas_qubit_ix)
+            if self.meas_type == 'X':
+                self.mX_X_qbts.append(self.meas_qubit_ix)
+            elif self.meas_type == 'Y':
+                self.mY_Y_qbts.append(self.meas_qubit_ix)
+            elif self.meas_type == 'XYout':
+                self.mOUT_OUT_qbts.append(self.meas_qubit_ix)
             if self.meas_out:
                 self.poss_strat_list = self.filter_strat_measured_qubit_fixed_basis(self.meas_type, self.meas_qubit_ix)
             else:
@@ -227,14 +258,24 @@ class LT_FullDecoder(object):
             if self.printing:
                 print("Direct XY meas failed, but qubit was Z inDIRECTLY MEASURED")
             self.measured_qubits.append(self.meas_qubit_ix)
-            self.mXY_Z_qbts.append(self.meas_qubit_ix)
+            if self.meas_type == 'X':
+                self.mX_Z_qbts.append(self.meas_qubit_ix)
+            elif self.meas_type == 'Y':
+                self.mY_Z_qbts.append(self.meas_qubit_ix)
+            elif self.meas_type == 'XYout':
+                self.mOUT_Z_qbts.append(self.meas_qubit_ix)
             self.poss_strat_list = self.filter_strat_measured_qubit_fixed_basis('Z', self.meas_qubit_ix)
         elif outcome_basis == 'na':
             self.new_strategy = True
             if self.printing:
                 print("Measurement XY failed to provide any outcome, qubit is LOST")
             self.lost_qubits.append(self.meas_qubit_ix)
-            self.mXY_na_qbts.append(self.meas_qubit_ix)
+            if self.meas_type == 'X':
+                self.mX_na_qbts.append(self.meas_qubit_ix)
+            elif self.meas_type == 'Y':
+                self.mY_na_qbts.append(self.meas_qubit_ix)
+            elif self.meas_type == 'XYout':
+                self.mOUT_na_qbts.append(self.meas_qubit_ix)
             self.poss_strat_list = self.filter_strat_lost_qubit(self.meas_qubit_ix)
         else:
             raise ValueError("Outcome basis not recognized, use one in (X, Y, XY, Z, na)")
@@ -258,7 +299,7 @@ class LT_FullDecoder(object):
 
     ##### Monte-Carlo decoder simulation
 
-    def MC_decoding(self, transm, t_xyi=1, t_zi=0, provide_measures=False):
+    def MC_decoding(self, transm, t_xi=1, t_yi=1, t_zi=0, provide_measures=False):
         # reset the decoder state
         self.reset_decoder_state()
         while not self.finished:
@@ -267,7 +308,10 @@ class LT_FullDecoder(object):
                 print("starting new measurement, meas_out", self.meas_out, ", measured_qubits", self.measured_qubits)
                 print("Current stabs:", self.poss_strat_list)
                 print("Strategy status",
-                      [self.mXY_XY_qbts, self.mXY_Z_qbts, self.mXY_na_qbts, self.mZ_Z_qbts, self.mZ_na_qbts])
+                      [self.mOUT_OUT_qbts, self.mOUT_Z_qbts, self.mOUT_na_qbts,
+                       self.mX_X_qbts, self.mX_Z_qbts, self.mX_na_qbts,
+                       self.mY_Y_qbts, self.mY_Z_qbts, self.mY_na_qbts,
+                       self.mZ_Z_qbts, self.mZ_na_qbts])
 
             # if there are no possible measurement to do, we have failed and we stop
             if len(self.poss_strat_list) == 0:
@@ -284,32 +328,33 @@ class LT_FullDecoder(object):
                         poss_outcomes, outcome_probs = self.get_probs_Z_meas(transm, t_zi=t_zi)
                         this_outcome = np.random.choice(poss_outcomes, p=outcome_probs)
                         self.update_decoder_Zmeas(this_outcome)
-                    elif self.meas_type in ['X', 'Y']:
-                        poss_outcomes, outcome_probs = self.get_probs_XY_meas(transm, t_xyi=t_xyi, t_zi=t_zi)
+                    elif self.meas_type in ['X', 'Y', 'XYout']:
+                        poss_outcomes, outcome_probs = self.get_probs_XY_meas(transm, t_xi=t_xi, t_yi=t_yi, t_zi=t_zi)
                         this_outcome = np.random.choice(poss_outcomes, p=outcome_probs)
                         self.update_decoder_XYmeas(this_outcome)
                     else:
-                        raise ValueError("meas_type not recognized, use one in (X, Y, Z)")
+                        raise ValueError("meas_type not recognized, use one in (X, Y, Z, XYout)")
 
         # see if we succeded or failed
+        deco_final_status = (
+                        tuple(self.mOUT_OUT_qbts), tuple(self.mOUT_Z_qbts), tuple(self.mOUT_na_qbts),
+                        tuple(self.mX_X_qbts), tuple(self.mX_Z_qbts), tuple(self.mX_na_qbts),
+                        tuple(self.mY_Y_qbts), tuple(self.mY_Z_qbts), tuple(self.mY_na_qbts),
+                        tuple(self.mZ_Z_qbts), tuple(self.mZ_na_qbts))
         if self.on_track:
             if provide_measures:
-                if t_xyi == 1 and t_zi == 0:
+                if t_xi == 1 and t_yi == 1 and t_zi == 0:
                     return True, (tuple(self.measured_qubits), tuple(self.lost_qubits))
                 else:
-                    return True, (
-                        tuple(self.mXY_XY_qbts), tuple(self.mXY_Z_qbts), tuple(self.mXY_na_qbts), tuple(self.mZ_Z_qbts),
-                        tuple(self.mZ_na_qbts))
+                    return True, deco_final_status
             else:
                 return True
         else:
             if provide_measures:
-                if t_xyi == 1 and t_zi == 0:
+                if t_xi == 1 and t_yi == 1 and t_zi == 0:
                     return False, (tuple(self.measured_qubits), tuple(self.lost_qubits))
                 else:
-                    return False, (
-                        tuple(self.mXY_XY_qbts), tuple(self.mXY_Z_qbts), tuple(self.mXY_na_qbts), tuple(self.mZ_Z_qbts),
-                        tuple(self.mZ_na_qbts))
+                    return False, deco_final_status
             else:
                 return False
 
@@ -321,7 +366,7 @@ class LT_FullDecoder(object):
 
 class LT_IndMeasDecoder(object):
     r"""
-    Class representing the decoder to inderectly measure a Pauli operator in a graph.
+    Class representing the decoder to indirectly measure a Pauli operator in a graph.
 
     The state of the decoder is identified by the variables:
     'poss_strat_list': list of remaining strategies available to the decoder.
@@ -329,11 +374,17 @@ class LT_IndMeasDecoder(object):
 
     'measured_qubits': List of qubits that have already been measured.
     'lost_qubits': List of qubits that have already been measured to be lost.
-    'mXY_XY_qbts': List of qubits in which a X or Y measure has been tried, and a X or Y outcome has been obtained.
-    'mXY_Z_qbts': List of qubits in which a X or Y measure has been tried, and an indirect Z outcome was obtained.
-    'mXY_na_qbts': List of qubits in which a X or Y measure has been tried, and no outcome was obtained.
+    'mOUT_OUT_qbts': List of qubits in which an arbitrary measure has been tried, successfully.
+    'mOUT_Z_qbts': List of qubits in which an arbitrary measure has been tried, unsuccessfully but an indirect Z outcome was obtained
+    'mOUT_na_qbts': List of qubits in which an arbitrary measure has been tried, and no outcome was obtained
+    'mX_X_qbts': List of qubits in which a X measure has been tried, and a X outcome has been obtained.
+    'mX_Z_qbts': List of qubits in which a X measure has been tried, and an indirect Z outcome was obtained.
+    'mX_na_qbts': List of qubits in which a X measure has been tried, and no outcome was obtained.
+    'mY_Y_qbts': List of qubits in which a Y measure has been tried, and a Y outcome has been obtained.
+    'mY_Z_qbts': List of qubits in which a Y measure has been tried, and an indirect Z outcome was obtained.
+    'mY_na_qbts': List of qubits in which a Y measure has been tried, and no outcome was obtained.
     'mZ_Z_qbts': List of qubits in which a Z measure has been tried, and a Z outcome was obtained.
-    'mXY_na_qbts': List of qubits in which a Z measure has been tried, and no outcome was obtained.
+    'mZ_na_qbts': List of qubits in which a Z measure has been tried, and no outcome was obtained.
 
     'new_strategy': True if a new strategy needs to be initialized (eg. because the previous one has failed due to loss).
     'finished': False if the decoder hasn't finished, True if there are no strategies left (decoder failed) or if it succeds.
@@ -346,9 +397,15 @@ class LT_IndMeasDecoder(object):
         self.in_qubit = in_qubit
         self.meas_qubit_ix = 0  # Index of next qubit to be measured
         self.meas_type = 'I'  # Pauli operator to be measured next
-        self.mXY_XY_qbts = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in XY
-        self.mXY_Z_qbts = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in (indirect) Z measurement
-        self.mXY_na_qbts = []  # tracks qubits that we tried to measure in XY, and obtained no outcome
+        self.mOUT_OUT_qbts = []  # tracks qubits that we tried to measure in arbitrary bases, and succeded
+        self.mOUT_Z_qbts = []  # tracks qubits that we tried to measure in arbitrary bases, failed but obtained an outcome in (indirect) Z measurement
+        self.mOUT_na_qbts = []  # tracks qubits that we tried to measure in arbitrary bases, and obtained no outcome
+        self.mX_X_qbts = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in XY
+        self.mX_Z_qbts = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in (indirect) Z measurement
+        self.mX_na_qbts = []  # tracks qubits that we tried to measure in XY, and obtained no outcome
+        self.mY_Y_qbts = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in XY
+        self.mY_Z_qbts = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in (indirect) Z measurement
+        self.mY_na_qbts = []  # tracks qubits that we tried to measure in XY, and obtained no outcome
         self.mZ_Z_qbts = []  # tracks qubits that we tried to measure in Z, and obtained an outcome in Z (direct or indirect)
         self.mZ_na_qbts = []  # tracks qubits that we tried to measure in Z, and obtained no outcome
         self.measured_qubits = []  # tracks which qubits have been already measured
@@ -367,9 +424,15 @@ class LT_IndMeasDecoder(object):
     def reset_decoder_state(self):
         self.meas_qubit_ix = 0
         self.meas_type = 'I'
-        self.mXY_XY_qbts = []
-        self.mXY_Z_qbts = []
-        self.mXY_na_qbts = []
+        self.mOUT_OUT_qbts = []
+        self.mOUT_Z_qbts = []
+        self.mOUT_na_qbts = []
+        self.mX_X_qbts = []
+        self.mX_Z_qbts = []
+        self.mX_na_qbts = []
+        self.mY_Y_qbts = []
+        self.mY_Z_qbts = []
+        self.mY_na_qbts = []
         self.mZ_Z_qbts = []
         self.mZ_na_qbts = []
         self.measured_qubits = []
@@ -393,8 +456,8 @@ class LT_IndMeasDecoder(object):
                 meas_weight = num_qubits - this_stab.count('I')
                 Z_weight = this_stab.count('Z') / (meas_weight + 1)
                 meas_qubits = [qbt for qbt in range(num_qubits)
-                               if ((qbt != self.in_qubit) and (this_stab[qbt] is not 'I'))]
-        ### order them such that we always prefer mstrategies with smaller weight, and with more Zs in the non-trivial paulis.
+                               if ((qbt != self.in_qubit) and (this_stab[qbt] != 'I'))]
+                ### order them such that we always prefer mstrategies with smaller weight, and with more Zs in the non-trivial paulis.
                 poss_stabs_list.append([this_stab, meas_qubits, meas_weight, Z_weight])
         poss_stabs_list.sort(key=lambda x: x[2] - x[3])
         return poss_stabs_list
@@ -426,7 +489,7 @@ class LT_IndMeasDecoder(object):
             qubits_to_measure_in_XYs = [x for x in qubits_to_measure if self.meas_config[0][x] in ['X', 'Y']]
             # Pick one of the qubits (starting from the largest one, inspired by trees)
             # Qubits to be measured in XYs are measured first, similarly as for outputs.
-            if len(qubits_to_measure_in_XYs)>0:
+            if len(qubits_to_measure_in_XYs) > 0:
                 self.meas_qubit_ix = qubits_to_measure_in_XYs[-1]
             else:
                 self.meas_qubit_ix = qubits_to_measure[-1]
@@ -448,12 +511,18 @@ class LT_IndMeasDecoder(object):
 
     ##### Measurement Functions
 
-    def get_probs_XY_meas(self, transm, t_xyi=1, t_zi=0):
+    def get_probs_XY_meas(self, transm, t_xi=1, t_yi=1, t_zi=0):
+        if self.meas_type == 'XYout':
+            t_xyi = max(t_xi, t_yi)
+        elif self.meas_type == 'X':
+            t_xyi = t_xi
+        elif self.meas_type == 'Y':
+            t_xyi = t_yi
         p_XY_XY = transm * t_xyi  # Prob. to measure in X (Y) and obtain  X (Y) outcome.
         p_XY_Z = (1 - transm) * t_zi  # Prob. to measure in X (Y), fail direct meas, but obtain indir. Z outcome
         p_XY_na = 1 - p_XY_XY - p_XY_Z  # transm * (1 - t_xyi) + (1 - transm) * (1 - t_xyi)
         # Prob. to measure in X (Y) and obtain no outcome (lost)
-        return ['XY', 'Z', 'na'], [p_XY_XY, p_XY_Z, p_XY_na]
+        return [self.meas_type, 'Z', 'na'], [p_XY_XY, p_XY_Z, p_XY_na]
 
     def get_probs_Z_meas(self, transm, t_zi=0):
         p_Z_Z = transm + (
@@ -462,13 +531,15 @@ class LT_IndMeasDecoder(object):
         return ['Z', 'na'], [p_Z_Z, p_Z_na]
 
     def update_decoder_XYmeas(self, outcome_basis):
-        if outcome_basis in ['X', 'Y', 'XY']:
+        if outcome_basis in ['X', 'Y']:
             if self.printing:
                 print("qubit is X or Y FULLY MEASURED")
             self.measured_qubits.append(self.meas_qubit_ix)
-            self.mXY_XY_qbts.append(self.meas_qubit_ix)
+            if self.meas_type == 'X':
+                self.mX_X_qbts.append(self.meas_qubit_ix)
+            elif self.meas_type == 'Y':
+                self.mY_Y_qbts.append(self.meas_qubit_ix)
             self.poss_strat_list = self.filter_stabs_measured_qubit_fixed_basis(self.meas_type, self.meas_qubit_ix)
-
         elif outcome_basis == 'Z':
             # if direct X or Y meas failed, we can still indirectly measure it in Z from the layer below
             # before starting a new strategy.
@@ -476,17 +547,23 @@ class LT_IndMeasDecoder(object):
             if self.printing:
                 print("Direct XY meas failed, but qubit was Z inDIRECTLY MEASURED")
             self.measured_qubits.append(self.meas_qubit_ix)
-            self.mXY_Z_qbts.append(self.meas_qubit_ix)
+            if self.meas_type == 'X':
+                self.mX_Z_qbts.append(self.meas_qubit_ix)
+            elif self.meas_type == 'Y':
+                self.mY_Z_qbts.append(self.meas_qubit_ix)
             self.poss_strat_list = self.filter_stabs_measured_qubit_fixed_basis('Z', self.meas_qubit_ix)
         elif outcome_basis == 'na':
             self.new_strategy = True
             if self.printing:
                 print("Measurement XY failed to provide any outcome, qubit is LOST")
             self.lost_qubits.append(self.meas_qubit_ix)
-            self.mXY_na_qbts.append(self.meas_qubit_ix)
+            if self.meas_type == 'X':
+                self.mX_na_qbts.append(self.meas_qubit_ix)
+            elif self.meas_type == 'Y':
+                self.mY_na_qbts.append(self.meas_qubit_ix)
             self.poss_strat_list = self.filter_stabs_lost_qubit(self.meas_qubit_ix)
         else:
-            raise ValueError("Outcome basis not recognized, use one in (X, Y, XY, Z, na)")
+            raise ValueError("Outcome basis not recognized, use one in (X, Y, XYout, Z, na)")
 
     def update_decoder_Zmeas(self, outcome_basis):
         if outcome_basis == 'Z':
@@ -507,7 +584,7 @@ class LT_IndMeasDecoder(object):
 
     ##### Monte-Carlo decoder simulation
 
-    def MC_decoding(self, transm, t_xyi=1, t_zi=0, provide_measures=False):
+    def MC_decoding(self, transm, t_xi=1, t_yi=1, t_zi=0, provide_measures=False):
         # reset the decoder state
         self.reset_decoder_state()
         while not self.finished:
@@ -516,7 +593,10 @@ class LT_IndMeasDecoder(object):
                 print("starting new measurement, measured_qubits", self.measured_qubits)
                 print("Current stabs:", self.poss_strat_list)
                 print("Strategy status",
-                      [self.mXY_XY_qbts, self.mXY_Z_qbts, self.mXY_na_qbts, self.mZ_Z_qbts, self.mZ_na_qbts])
+                      [self.mOUT_OUT_qbts, self.mOUT_Z_qbts, self.mOUT_na_qbts,
+                       self.mX_X_qbts, self.mX_Z_qbts, self.mX_na_qbts,
+                       self.mY_Y_qbts, self.mY_Z_qbts, self.mY_na_qbts,
+                       self.mZ_Z_qbts, self.mZ_na_qbts])
 
             # if there are no possible measurement to do, we have failed and we stop
             if len(self.poss_strat_list) == 0:
@@ -534,31 +614,32 @@ class LT_IndMeasDecoder(object):
                         this_outcome = np.random.choice(poss_outcomes, p=outcome_probs)
                         self.update_decoder_Zmeas(this_outcome)
                     elif self.meas_type in ['X', 'Y']:
-                        poss_outcomes, outcome_probs = self.get_probs_XY_meas(transm, t_xyi=t_xyi, t_zi=t_zi)
+                        poss_outcomes, outcome_probs = self.get_probs_XY_meas(transm, t_xi=t_xi, t_yi=t_yi, t_zi=t_zi)
                         this_outcome = np.random.choice(poss_outcomes, p=outcome_probs)
                         self.update_decoder_XYmeas(this_outcome)
                     else:
                         raise ValueError("meas_type not recognized, use one in (X, Y, Z)")
 
         # see if we succeded or failed
+        deco_final_status = (
+                        tuple(self.mOUT_OUT_qbts), tuple(self.mOUT_Z_qbts), tuple(self.mOUT_na_qbts),
+                        tuple(self.mX_X_qbts), tuple(self.mX_Z_qbts), tuple(self.mX_na_qbts),
+                        tuple(self.mY_Y_qbts), tuple(self.mY_Z_qbts), tuple(self.mY_na_qbts),
+                        tuple(self.mZ_Z_qbts), tuple(self.mZ_na_qbts))
         if self.on_track:
             if provide_measures:
-                if t_xyi == 1 and t_zi == 0:
+                if t_xi == 1 and t_yi == 1 and t_zi == 0:
                     return True, (tuple(self.measured_qubits), tuple(self.lost_qubits))
                 else:
-                    return True, (
-                        tuple(self.mXY_XY_qbts), tuple(self.mXY_Z_qbts), tuple(self.mXY_na_qbts), tuple(self.mZ_Z_qbts),
-                        tuple(self.mZ_na_qbts))
+                    return True, deco_final_status
             else:
                 return True
         else:
             if provide_measures:
-                if t_xyi == 1 and t_zi == 0:
+                if t_xi == 1 and t_yi == 1 and t_zi == 0:
                     return False, (tuple(self.measured_qubits), tuple(self.lost_qubits))
                 else:
-                    return False, (
-                        tuple(self.mXY_XY_qbts), tuple(self.mXY_Z_qbts), tuple(self.mXY_na_qbts), tuple(self.mZ_Z_qbts),
-                        tuple(self.mZ_na_qbts))
+                    return False, deco_final_status
             else:
                 return False
 
@@ -636,7 +717,7 @@ if __name__ == '__main__':
     full_decoder = LT_FullDecoder(gstate, in_qubit, printing=True)
 
     # define channel transmission
-    transmission = 0.6
+    transmission = 0.8
     decoding_succ, meas = full_decoder.MC_decoding(transmission, provide_measures=True)
 
     ## see if we succeded or failed
