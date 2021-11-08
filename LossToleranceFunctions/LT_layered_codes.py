@@ -1,14 +1,33 @@
 from LossToleranceFunctions.LT_Decoders_Classes import LT_FullDecoder, LT_IndMeasDecoder
-from LossToleranceFunctions.LT_analyticalDecodersProbs_treesearch import get_LTdecoder_succpob_treesearch, \
-    probsucc_poly_fromexpress
+from LossToleranceFunctions.LT_analyticalDecodersProbs_treesearch import get_LTdecoder_succpob_treesearch
 
 
 ###############################################
 ####### FUNCTIONS FOR CASCADED CODES ##########
 ###############################################
 
-def probsucc_poly_fromexpress_casc(t, t_xyi, t_zi, poly_express):
-    return probsucc_poly_fromexpress(t, t_xyi, t_xyi, t_zi, poly_express)
+# Function that converts the polynomial expression into the success probability as a function of:
+# transmission t, and indirect measurement probabilities p_xyi, p_zi
+# The terms in the expression are in the order: (OUT_OUT, OUT_Z, OUT_na, X_X, X_Z, X_na, Y_Y, Y_Z, Y_na, Z_Z, Z_na)
+def probsucc_poly_fromexpress_casc(t, t_xi, t_yi, t_zi, poly_express):
+    t_xyi = max(t_xi, t_yi)
+    return sum(
+        [poly_express[term] *
+         ((t*t_xyi)**term[0]) *
+         (((1-t)*t_zi)**term[1]) *
+         (((1-t)*(1-t_zi) + t*(1-t_xyi))**term[2]) *
+
+         ((t * t_xi) ** term[3]) *
+         (((1 - t) * t_zi) ** term[4]) *
+         (((1 - t) * (1 - t_zi) + t * (1 - t_xi)) ** term[5]) *
+
+         ((t * t_yi) ** term[6]) *
+         (((1 - t) * t_zi) ** term[7]) *
+         (((1 - t) * (1 - t_zi) + t * (1 - t_yi)) ** term[8]) *
+
+         ((t+(1-t)*t_zi)**term[9]) *
+         ((1-t-(1-t)*t_zi)**term[10])
+         for term in poly_express])
 
 
 def cascade_prob_X(t, layer_ix, N_layers, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z):
