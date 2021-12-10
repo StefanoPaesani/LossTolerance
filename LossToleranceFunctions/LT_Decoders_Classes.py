@@ -119,7 +119,8 @@ class LT_FullDecoder(object):
                     poss_stabs_list.append(
                         [anticomm_qbts, other_meas_qubits, [stab1, stab2], measurement, meas_weight, Z_weight])
                     # print(stab1, stab2, anticomm_qbts, other_meas_qubits, measurement, meas_weight)
-        ### order them such that we always prefer mstrategies with smaller weight, and with more Zs in the non-trivial paulis.
+        # ## order them such that we always prefer mstrategies with smaller weight, and with more Zs in the
+        # non-trivial paulis.
         poss_stabs_list.sort(key=lambda x: x[4] - x[5])
         return poss_stabs_list
 

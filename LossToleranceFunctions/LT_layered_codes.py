@@ -1,7 +1,3 @@
-from LossToleranceFunctions.LT_Decoders_Classes import LT_FullDecoder, LT_IndMeasDecoder
-from LossToleranceFunctions.LT_analyticalDecodersProbs_treesearch import get_LTdecoder_succpob_treesearch
-
-
 ###############################################
 ####### FUNCTIONS FOR CASCADED CODES ##########
 ###############################################
@@ -9,21 +5,20 @@ from LossToleranceFunctions.LT_analyticalDecodersProbs_treesearch import get_LTd
 # Function that converts the polynomial expression into the success probability as a function of:
 # transmission t, and indirect measurement probabilities p_xyi, p_zi
 # The terms in the expression are in the order: (OUT_OUT, OUT_Z, OUT_na, X_X, X_Z, X_na, Y_Y, Y_Z, Y_na, Z_Z, Z_na)
-def probsucc_poly_fromexpress_casc(t, t_xi, t_yi, t_zi, poly_express):
-    t_xyi = max(t_xi, t_yi)
+def probsucc_poly_fromexpress_casc(t, t_xyi, t_zi, poly_express):
     return sum(
         [poly_express[term] *
          ((t*t_xyi)**term[0]) *
          (((1-t)*t_zi)**term[1]) *
          (((1-t)*(1-t_zi) + t*(1-t_xyi))**term[2]) *
 
-         ((t * t_xi) ** term[3]) *
+         ((t * t_xyi) ** term[3]) *
          (((1 - t) * t_zi) ** term[4]) *
-         (((1 - t) * (1 - t_zi) + t * (1 - t_xi)) ** term[5]) *
+         (((1 - t) * (1 - t_zi) + t * (1 - t_xyi)) ** term[5]) *
 
-         ((t * t_yi) ** term[6]) *
+         ((t * t_xyi) ** term[6]) *
          (((1 - t) * t_zi) ** term[7]) *
-         (((1 - t) * (1 - t_zi) + t * (1 - t_yi)) ** term[8]) *
+         (((1 - t) * (1 - t_zi) + t * (1 - t_xyi)) ** term[8]) *
 
          ((t+(1-t)*t_zi)**term[9]) *
          ((1-t-(1-t)*t_zi)**term[10])
@@ -208,6 +203,9 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from CodesFunctions.graphs import *
     import networkx as nx
+
+    from LossToleranceFunctions.LT_Decoders_Classes import LT_FullDecoder, LT_IndMeasDecoder
+    from LossToleranceFunctions.LT_analyticalDecodersProbs_treesearch import get_LTdecoder_succpob_treesearch
 
     # from itertools import chain
 
