@@ -202,17 +202,18 @@ if __name__ == '__main__':
     # gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
 
     ### Generate random graph
-    graph = gen_random_connected_graph(8)
+    graph = gen_random_connected_graph(7)
     gstate = GraphState(graph)
 
     #########################################################################################
     ################################### SINGLE TEST - DECODING ##############################
     #########################################################################################
 
-    ind_meas_op = 'Z'
+    ind_meas_op = 'X'
 
     ### gets all stabs for a graph
-    all_stabs = [this_op.op for this_op in q.from_generators(gstate.stab_gens)][2:]
+    all_stabs = [this_op.op for this_op in q.from_generators(gstate.stab_gens)]
+    all_stabs.remove('I' * len(all_stabs[0]))
     print(all_stabs)
 
     ### filter stabilizers to get only those for indirect measurement
@@ -222,8 +223,8 @@ if __name__ == '__main__':
 
     ### identify all possible indirect measurement families
     meas_families = find_ind_meas_EC_families(filtered_stabs_ind_meas, ind_meas_op, in_qubit)
+    print()
     print(meas_families)
-
 
     ###### Tests to check if a single logical operator is present
     ###### (and all other ind. measurements are generated via multiplication with other stabiliers)
@@ -243,11 +244,10 @@ if __name__ == '__main__':
         single_log_op_meas_families_gen[this_meas] = generated_fam
         test_true_gen[this_meas] = (set(stabs_fam) == set(generated_fam))
 
-    print(single_log_op_meas_families)
     print(single_log_op_meas_families_gen)
+    print(single_log_op_meas_families)
     print(test_true_gen)
     print(np.all(list(test_true_gen.values())))
-
 
     # these_stabs = meas_families['ZXZZX']
     # print(these_stabs)
@@ -256,18 +256,6 @@ if __name__ == '__main__':
     # asd = these_pauli_coll.centralizer_gens(group_gens=these_pauli_coll)
     # asd = these_pauli_coll.centralizer_gens()
     # print(asd)
-
-
-
-
-
-
-
-
-
-
-
-
 
     ### select best family
     # best_meas = max(meas_families, key=lambda x: len(meas_families[x]))
