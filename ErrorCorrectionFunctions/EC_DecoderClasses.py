@@ -271,7 +271,7 @@ if __name__ == '__main__':
     # gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
 
     ### Generate random graph
-    graph = gen_random_connected_graph(4)
+    graph = gen_random_connected_graph(6)
     gstate = GraphState(graph)
 
     #########################################################################################
@@ -295,5 +295,7 @@ if __name__ == '__main__':
     plt.plot(error_vals, log_err_list_X, 'r', label='X', linewidth=3)
     plt.plot(error_vals, log_err_list_Y, 'b', label='Y', linewidth=2, alpha=1)
     plt.plot(error_vals, log_err_list_Z, 'k', label='Z', alpha=1)
+    plt.xlabel('Physical error probability')
+    plt.ylabel('Logical error probability')
     plt.legend()
     plt.show()
