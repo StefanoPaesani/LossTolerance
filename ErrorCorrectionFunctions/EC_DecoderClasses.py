@@ -145,6 +145,7 @@ def sum_prob_struct_coeffs_dicts(prob_dict1, prob_dict2):
 
 
 ######### EC family decoder
+
 # calculates the lookup dictionary
 # gets: syndroms, whether the logical operator gets flipped, and probability structure
 # for all possible errors and a given measurement
@@ -178,6 +179,25 @@ def calculate_syndromes_dictionary(measurement, log_op, syndr_stabs_list, input_
     return temp_syndr_dict
 
 
+### Full decoder for indirect measurement that calculates the lookup table for a given graph.
+def ind_meas_EC_decoder(graph_state, ind_meas_op, in_qubit, max_error_num=None):
+    if ind_meas_op not in ('X', 'Y', 'Z'):
+        raise ValueError('The indirect measument Pauli operator needs to be one of (X, Y, Z)')
+    ### gets all stabs for a graph
+    all_stabs = [this_op.op for this_op in q.from_generators(graph_state.stab_gens)]
+    all_stabs.remove('I' * len(all_stabs[0]))
+    ### filter stabilizers to get only those for indirect measurement
+    filtered_stabs_ind_meas = filter_stabs_input_op_compatible(all_stabs, ind_meas_op, in_qubit)
+    ### identify all possible indirect measurement families
+    meas_families = find_ind_meas_EC_families(filtered_stabs_ind_meas, ind_meas_op, in_qubit)
+    ## select best family
+    best_meas = max(meas_families, key=lambda x: len(meas_families[x][1]))
+    best_fam = meas_families[best_meas]
+    ## run decoder:  build syndromes lookup table and return it
+    return calculate_syndromes_dictionary(best_meas, best_fam[0], best_fam[1], in_qubit, max_error_num=max_error_num)
+
+
+### Calculates the error probability given the lookup dictionary output from the decoder
 def log_op_error_prob_from_lookup_dict(lookup_dict, err_prob_X, err_prob_Y=None, err_prob_Z=None,
                                        num_prob_thresh=1e-12):
     # print(lookup_dict)
@@ -251,66 +271,29 @@ if __name__ == '__main__':
     # gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
 
     ### Generate random graph
-    graph = gen_random_connected_graph(6)
+    graph = gen_random_connected_graph(4)
     gstate = GraphState(graph)
 
     #########################################################################################
     ################################### SINGLE TEST - DECODING ##############################
     #########################################################################################
 
-    ind_meas_op = 'Y'
+    syndromes_probs_dict_X = ind_meas_EC_decoder(gstate, 'X', in_qubit, max_error_num=None)
+    syndromes_probs_dict_Y = ind_meas_EC_decoder(gstate, 'Y', in_qubit, max_error_num=None)
+    syndromes_probs_dict_Z = ind_meas_EC_decoder(gstate, 'Z', in_qubit, max_error_num=None)
 
-    ### gets all stabs for a graph
-    all_stabs = [this_op.op for this_op in q.from_generators(gstate.stab_gens)]
-    all_stabs.remove('I' * len(all_stabs[0]))
-    print(all_stabs)
+    # ##################################### Plots
+    gstate.image(input_qubits=[in_qubit])
+    plt.show()
 
-    ### filter stabilizers to get only those for indirect measurement
-    # filtered_stabs_ind_meas = filter_stabs_input_op_only(all_stabs, ind_meas_op, in_qubit)
-    filtered_stabs_ind_meas = filter_stabs_input_op_compatible(all_stabs, ind_meas_op, in_qubit)
-    print(filtered_stabs_ind_meas)
+    error_vals = np.linspace(0, 0.4, 20)
+    log_err_list_X = [log_op_error_prob_from_lookup_dict(syndromes_probs_dict_X, x) for x in error_vals]
+    log_err_list_Y = [log_op_error_prob_from_lookup_dict(syndromes_probs_dict_Y, x) for x in error_vals]
+    log_err_list_Z = [log_op_error_prob_from_lookup_dict(syndromes_probs_dict_Z, x) for x in error_vals]
 
-    ### identify all possible indirect measurement families
-    meas_families = find_ind_meas_EC_families(filtered_stabs_ind_meas, ind_meas_op, in_qubit)
-    print(meas_families)
-
-    ## select best family
-    best_meas = max(meas_families, key=lambda x: len(meas_families[x][1]))
-    best_fam = meas_families[best_meas]
-    print()
-    print(best_meas, best_fam)
-
-    ## run decoder:  build syndromes lookup table
-    syndromes_probs_dict = calculate_syndromes_dictionary(best_meas, best_fam[0], best_fam[1], in_qubit,
-                                                          max_error_num=None)
-    print(syndromes_probs_dict)
-
-    ### Get final probability for best graph
-    print()
-    error_prob = 0.1
-    final_prob_best = log_op_error_prob_from_lookup_dict(syndromes_probs_dict, error_prob)
-    print('Final probability best family:', final_prob_best)
-
-    ### Compare with all oterh families
-    log_error_rate_list = []
-    for this_meas in meas_families:
-        this_fam = meas_families[this_meas]
-        syndromes_probs_dict = calculate_syndromes_dictionary(this_meas, this_fam[0], this_fam[1], in_qubit,
-                                                              max_error_num=None)
-        log_error_rate = log_op_error_prob_from_lookup_dict(syndromes_probs_dict, error_prob)
-        log_error_rate_list.append(log_error_rate)
-    print(log_error_rate_list)
-    is_best_really_best_array = np.array(log_error_rate_list) >= (final_prob_best - 1e-8)
-    print(is_best_really_best_array)
-    print(np.all(is_best_really_best_array))
-
-
-
-    # ##################################### PLots
-    #
-    # error_vals = np.linspace(0, 0.4, 20)
-    # log_err_list = [log_op_error_prob_from_lookup_dict(syndromes_probs_dict, x) for x in error_vals]
-    # plt.plot(error_vals, error_vals, label="direct")
-    # plt.plot(error_vals, log_err_list, label='decoded')
-    # plt.legend()
-    # plt.show()
+    plt.plot(error_vals, error_vals, 'k:', label='', )
+    plt.plot(error_vals, log_err_list_X, 'r', label='X', linewidth=3)
+    plt.plot(error_vals, log_err_list_Y, 'b', label='Y', linewidth=2, alpha=1)
+    plt.plot(error_vals, log_err_list_Z, 'k', label='Z', alpha=1)
+    plt.legend()
+    plt.show()
