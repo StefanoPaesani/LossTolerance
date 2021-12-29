@@ -1,5 +1,6 @@
 import qecc as q
 import numpy as np
+from MiscFunctions.PauliOpsFunctions import single_qubit_commute
 
 
 ###################################
@@ -643,21 +644,6 @@ class LT_IndMeasDecoder(object):
                     return False, deco_final_status
             else:
                 return False
-
-
-##############################
-### OTHER USEFUL FUNCTIONS ###
-##############################
-
-def single_qubit_commute(pauli1, pauli2, qbt):
-    """
-    Returns 0 if the operators on the qbt-th qubit of the two operators in the Pauli group commute,
-    and 1 if they anticommute.
-    """
-    if pauli1[qbt] == 'I' or pauli2[qbt] == 'I' or pauli1[qbt] == pauli2[qbt]:
-        return 0
-    else:
-        return 1
 
 
 ########################################################################################################################
