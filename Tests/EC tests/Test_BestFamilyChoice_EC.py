@@ -237,8 +237,8 @@ if __name__ == '__main__':
     # gstate = GraphState(graph)
 
     # ## ring graph
-    # graph = gen_ring_graph(5)
-    # gstate = GraphState(graph)
+    graph = gen_ring_graph(5)
+    gstate = GraphState(graph)
 
     ### line graph L543021 with no loss-tolerance
     # graph_nodes = list(range(6))
@@ -251,12 +251,14 @@ if __name__ == '__main__':
     # gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
 
     ### Generate random graph
-    graph = gen_random_connected_graph(6)
-    gstate = GraphState(graph)
+    # graph = gen_random_connected_graph(6)
+    # gstate = GraphState(graph)
 
     #########################################################################################
     ################################### SINGLE TEST - DECODING ##############################
     #########################################################################################
+    gstate.image(input_qubits=[in_qubit])
+    plt.show()
 
     ind_meas_op = 'Y'
 
