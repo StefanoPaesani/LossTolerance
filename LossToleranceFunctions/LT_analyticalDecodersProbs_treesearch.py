@@ -62,7 +62,7 @@ def get_LTdecoder_succpob_treesearch(LTdecoder, poss_meas_outcomes=None):
 # Function that converts the polynomial expression into the success probability as a function of:
 # transmission t, and indirect measurement probabilities p_xyi, p_zi
 # The terms in the expression are in the order: (OUT_OUT, OUT_Z, OUT_na, X_X, X_Z, X_na, Y_Y, Y_Z, Y_na, Z_Z, Z_na)
-def probsucc_poly_fromexpress(t, t_xi, t_yi, t_zi, poly_express):
+def probsucc_poly_fromexpress(t, poly_express, t_xi=1, t_yi=1, t_zi=0):
     t_xyi = max(t_xi, t_yi)
     return sum(
         [poly_express[term] *
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     used_t_xi = 1.
     used_t_yi = 1.
     used_t_zi = 0.
-    succ_probs = [probsucc_poly_fromexpress(t, used_t_xi, used_t_yi, used_t_zi, succ_prob_poly_terms) for t in t_list]
+    succ_probs = [probsucc_poly_fromexpress(t, succ_prob_poly_terms, used_t_xi, used_t_yi, used_t_zi) for t in t_list]
     plt.plot(t_list, succ_probs, c='blue', label='Analyt.')
 
     plt.plot(t_list, t_list, 'k:', label='Direct')
