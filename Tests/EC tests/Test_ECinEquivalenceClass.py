@@ -6,7 +6,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from CodesFunctions.graphs import *
 
-    qubits_num = 5
+    qubits_num = 6
     in_qubit = 0
     error_rate = 0.05
 
