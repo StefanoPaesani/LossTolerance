@@ -362,80 +362,89 @@ def teleportation_EC_decoder(graph_state, in_qubit, pref_pauli='Z', max_error_nu
     # print('All families:')
     # print(meas_families, len(meas_families))
     ## select best family
-    best_meas = max(meas_families, key=lambda x: len(meas_families[x][1]) + (
-        0 if len(meas_families[x][1]) == 0 else count_target_pauli_in_stabs(meas_families[x][1], pref_pauli) / (
-                num_qbts * len(meas_families[x][1]))))
-    best_fam = meas_families[best_meas]
-    # print('best_meas', best_meas)
-    # print('best_fam', best_fam)
-    return calculate_syndromes_dictionary_teleport(best_meas, best_fam[0][1][0], best_fam[0][1][1], best_fam[1],
-                                                   best_fam[0][0], max_error_num=max_error_num)
+    if meas_families:
+        best_meas = max(meas_families, key=lambda x: len(meas_families[x][1]) + (
+            0 if len(meas_families[x][1]) == 0 else count_target_pauli_in_stabs(meas_families[x][1], pref_pauli) / (
+                    num_qbts * len(meas_families[x][1]))))
+        best_fam = meas_families[best_meas]
+        # print('best_meas', best_meas)
+        # print('best_fam', best_fam)
+        return calculate_syndromes_dictionary_teleport(best_meas, best_fam[0][1][0], best_fam[0][1][1], best_fam[1],
+                                                       best_fam[0][0], max_error_num=max_error_num)
+    else:
+        return False
 
 
 ### Calculates the error probability given the lookup dictionary output from the single ind. measurement decoder
 def log_op_error_prob_from_lookup_dict(lookup_dict, err_prob_X, err_prob_Y=None, err_prob_Z=None,
                                        num_prob_thresh=1e-12):
-    if err_prob_Y is None:
-        err_prob_Y = err_prob_X
-    if err_prob_Z is None:
-        err_prob_Z = err_prob_X
-    # print(lookup_dict)
-    succ_probs_syndromes_raw = dict()
-    for syndr in lookup_dict:
-        # probability to get a flipped indirect measurement outcome for a given stabilizer
-        succ_probs_syndromes_raw[syndr] = calculate_prob_from_struct_coeff_dict(lookup_dict[syndr][1],
-                                                                                err_prob_X, err_prob_Y, err_prob_Z)
-    # print(succ_probs_syndromes_raw)
-    ## build all syndrome probabilities:
-    syndr_probs = dict()
-    for syndr in lookup_dict:
-        syndr_probs[syndr] = calculate_prob_from_struct_coeff_dict(
-            sum_prob_struct_coeffs_dicts([lookup_dict[syndr][0], lookup_dict[syndr][1]]),
-            err_prob_X, err_prob_Y, err_prob_Z)
-    # print(syndr_probs)
-    ### Normalize meas. success prob for given syndrome, and perform error correction
-    succ_probs_syndromes = dict()
-    for syndr in succ_probs_syndromes_raw:
-        if syndr_probs[syndr] > num_prob_thresh:
-            temp_prob = succ_probs_syndromes_raw[syndr] / syndr_probs[syndr]
-        else:
-            temp_prob = 0.
-        # for error correction, majority voting is assumed here
-        succ_probs_syndromes[syndr] = min(temp_prob, 1 - temp_prob)
-    ### Get final probability
-    return sum([succ_probs_syndromes[syndr] * syndr_probs[syndr] for syndr in succ_probs_syndromes])
+    if lookup_dict:
+        if err_prob_Y is None:
+            err_prob_Y = err_prob_X
+        if err_prob_Z is None:
+            err_prob_Z = err_prob_X
+        # print(lookup_dict)
+        succ_probs_syndromes_raw = dict()
+        for syndr in lookup_dict:
+            # probability to get a flipped indirect measurement outcome for a given stabilizer
+            succ_probs_syndromes_raw[syndr] = calculate_prob_from_struct_coeff_dict(lookup_dict[syndr][1],
+                                                                                    err_prob_X, err_prob_Y, err_prob_Z)
+        # print(succ_probs_syndromes_raw)
+        ## build all syndrome probabilities:
+        syndr_probs = dict()
+        for syndr in lookup_dict:
+            syndr_probs[syndr] = calculate_prob_from_struct_coeff_dict(
+                sum_prob_struct_coeffs_dicts([lookup_dict[syndr][0], lookup_dict[syndr][1]]),
+                err_prob_X, err_prob_Y, err_prob_Z)
+        # print(syndr_probs)
+        ### Normalize meas. success prob for given syndrome, and perform error correction
+        succ_probs_syndromes = dict()
+        for syndr in succ_probs_syndromes_raw:
+            if syndr_probs[syndr] > num_prob_thresh:
+                temp_prob = succ_probs_syndromes_raw[syndr] / syndr_probs[syndr]
+            else:
+                temp_prob = 0.
+            # for error correction, majority voting is assumed here
+            succ_probs_syndromes[syndr] = min(temp_prob, 1 - temp_prob)
+        ### Get final probability
+        return sum([succ_probs_syndromes[syndr] * syndr_probs[syndr] for syndr in succ_probs_syndromes])
+    else:
+        return 1
 
 
 ### Calculates the error probability given the lookup dictionary output from the teleportation decoder
 def teleport_error_prob_from_lookup_dict(lookup_dict, err_prob_X, err_prob_Y=None, err_prob_Z=None,
                                          num_prob_thresh=1e-12):
-    if err_prob_Y is None:
-        err_prob_Y = err_prob_X
-    if err_prob_Z is None:
-        err_prob_Z = err_prob_X
+    if lookup_dict:
+        if err_prob_Y is None:
+            err_prob_Y = err_prob_X
+        if err_prob_Z is None:
+            err_prob_Z = err_prob_X
 
-    # print(succ_probs_syndromes_raw)
-    ## build all syndrome probabilities:
-    syndr_probs = dict()
-    for syndr in lookup_dict:
-        syndr_probs[syndr] = calculate_prob_from_struct_coeff_dict(
-            sum_prob_struct_coeffs_dicts(list(lookup_dict[syndr].values())),
-            err_prob_X, err_prob_Y, err_prob_Z)
-    # print(syndr_probs)
-    ### Normalize meas. success prob for given syndrome, and perform error correction
-    succ_probs_syndromes = dict()
-    for syndr in lookup_dict:
-        if syndr_probs[syndr] > num_prob_thresh:
-            # for error correction, majority voting is assumed here
-            succ_probs_syndromes[syndr] = 1 - max(
-                [calculate_prob_from_struct_coeff_dict(lookup_dict[syndr][log_ops_errors],
-                                                       err_prob_X, err_prob_Y,
-                                                       err_prob_Z) / syndr_probs[syndr]
-                 for log_ops_errors in lookup_dict[syndr]])
-        else:
-            succ_probs_syndromes[syndr] = 0.
-    ### Get final probability
-    return sum([succ_probs_syndromes[syndr] * syndr_probs[syndr] for syndr in lookup_dict])
+        # print(succ_probs_syndromes_raw)
+        ## build all syndrome probabilities:
+        syndr_probs = dict()
+        for syndr in lookup_dict:
+            syndr_probs[syndr] = calculate_prob_from_struct_coeff_dict(
+                sum_prob_struct_coeffs_dicts(list(lookup_dict[syndr].values())),
+                err_prob_X, err_prob_Y, err_prob_Z)
+        # print(syndr_probs)
+        ### Normalize meas. success prob for given syndrome, and perform error correction
+        succ_probs_syndromes = dict()
+        for syndr in lookup_dict:
+            if syndr_probs[syndr] > num_prob_thresh:
+                # for error correction, majority voting is assumed here
+                succ_probs_syndromes[syndr] = 1 - max(
+                    [calculate_prob_from_struct_coeff_dict(lookup_dict[syndr][log_ops_errors],
+                                                           err_prob_X, err_prob_Y,
+                                                           err_prob_Z) / syndr_probs[syndr]
+                     for log_ops_errors in lookup_dict[syndr]])
+            else:
+                succ_probs_syndromes[syndr] = 0.
+        ### Get final probability
+        return sum([succ_probs_syndromes[syndr] * syndr_probs[syndr] for syndr in lookup_dict])
+    else:
+        return 1
 
 
 ################################################
