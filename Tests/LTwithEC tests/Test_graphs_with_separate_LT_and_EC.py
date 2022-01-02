@@ -121,7 +121,7 @@ if __name__ == '__main__':
             loss_probs = [1 - probsucc_poly_fromexpress(1 - loss, code_LT_prob_expr) for loss in noise_levels_plots]
             error_rates = [EC_prob_func(EC_decoder_output, err_prob) for err_prob in noise_levels_plots]
 
-            plt.plot(noise_levels_plots, noise_levels_plots, 'k:', label='', )
+            plt.plot(noise_levels_plots, noise_levels_plots, 'k:', label='')
             plt.plot(noise_levels_plots, loss_probs, 'r', label='LT decoder', linewidth=2)
             plt.plot(noise_levels_plots, error_rates, 'b', label='EC decoder')
             plt.xlabel('Physical error probability')
