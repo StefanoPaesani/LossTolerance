@@ -94,7 +94,7 @@ class FullT_IndMeasDecoder(object):
         self.on_track = True
         self.finished = False
         self.new_strategy = True
-        self.meas_config = []
+        self.meas_config = ()
         self.poss_strat_list = self.all_strats
 
     def get_indirect_meas_strats(self):
@@ -136,6 +136,9 @@ class FullT_IndMeasDecoder(object):
                     else:
                         # print('free qubt')
                         free_qubits.append(ix)
+            ### For all free qubits, include 'I' (loss) as a possible compatible measurement
+            for ix in free_qubits:
+                poss_ops_list[ix].append('I')
             # print('free_qubits:', free_qubits)
             ### Find all possible measurement bases for qubits with bases not fixed by the logical operator considered
             for this_comp_stab in compatible_syndromes:
@@ -187,10 +190,17 @@ class FullT_IndMeasDecoder(object):
         if self.printing:
             print("testing measurement meas_config", self.meas_config)
 
-        # try to measure a  qubit
-        self.qubits_to_measure = [x for x, pauli_op in enumerate(self.meas_config[0])
+        # try to measure a qubit
+        # first try to see if there are qubits to measure in the logical operator.
+        self.qubits_to_measure = [x for x, pauli_op in enumerate(self.meas_config[1][0])
                                   if ((x != self.in_qubit) and (x not in self.measured_qubits) and (pauli_op != 'I'))]
-        if len(self.qubits_to_measure) == 0:
+        # If no qubits in the logical operators are left to measure, try all including the others
+        if not self.qubits_to_measure:
+            self.qubits_to_measure = [x for x, pauli_op in enumerate(self.meas_config[0])
+                                      if
+                                      ((x != self.in_qubit) and (x not in self.measured_qubits) and (pauli_op != 'I'))]
+        # If there are still no qubits left, we have measured all of them!
+        if not self.qubits_to_measure:
             if self.printing:
                 print("SUCCEDING: no more qubits to measure")
             # If there are no more qubits to measure, we've succeded and we stop.
@@ -214,13 +224,13 @@ class FullT_IndMeasDecoder(object):
     # keeps only stabilizers in which the lost_qbt_ix is allowed to be lost
     def filter_strats_lost_qubit(self, lost_qbt_ix):
         return dict((k, self.poss_strat_list[k]) for k in self.poss_strat_list if
-                    self.poss_strat_list[k][0][lost_qbt_ix] == 'I')
+                    k[lost_qbt_ix] == 'I')
 
     # keeps only the stabilizers in which the meas_qbt_ix is the fixed basis measured or in 'I'
     # (for qubits measured in fixed basis that cannot anymore be measured in other bases)
     def filter_strats_measured_qubit_fixed_basis(self, fixed_basis, meas_qbt_ix):
         return dict((k, self.poss_strat_list[k]) for k in self.poss_strat_list if
-                    self.poss_strat_list[k][0][meas_qbt_ix] in [fixed_basis, 'I'])
+                    k[meas_qbt_ix] in [fixed_basis, 'I'])
 
     ##### Decoder updating function upon measurement trials
 

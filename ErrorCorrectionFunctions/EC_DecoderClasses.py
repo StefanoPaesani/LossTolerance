@@ -206,12 +206,12 @@ def sum_prob_struct_coeffs_dicts(prob_dict_list):
 def calculate_syndromes_dictionary_single_ind_meas(measurement, log_op, syndr_stabs_list, input_qubit,
                                                    include_direct_meas=False, max_error_num=None):
     if include_direct_meas:
-        qbts_indices = [i for i, _ in enumerate(measurement)]
+        qbts_indices = [i for i, op in enumerate(measurement) if op != 'I']
         stabs_for_decoder = copy(syndr_stabs_list)
         stabs_for_decoder.append(log_op)
         # print(stabs_for_decoder)
     else:
-        qbts_indices = [i for i, _ in enumerate(measurement) if i != input_qubit]
+        qbts_indices = [i for i, op in enumerate(measurement) if (i != input_qubit and op != 'I')]
         stabs_for_decoder = syndr_stabs_list
     if max_error_num is None:
         max_error_num = len(measurement) - 1
