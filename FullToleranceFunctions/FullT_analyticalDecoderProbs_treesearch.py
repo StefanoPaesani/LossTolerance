@@ -13,7 +13,7 @@ def get_FullTdecoder_succpob_treesearch(decoder, poss_meas_outcomes=None,
                                         include_direct_meas=False, max_error_num=None):
     if poss_meas_outcomes is None:
         poss_meas_outcomes = {'X': ['X', 'Zind', 'na'], 'Y': ['Y', 'Zind', 'na'],
-                              'Z': ['Zdir', 'Zind', 'Zdirind', 'na'],
+                              'Z': ['Z', 'na'],
                               'Out': ['Out', 'Zind', 'na']}
     list_running_decs = [decoder]
     list_finished_decs = []
@@ -30,7 +30,7 @@ def get_FullTdecoder_succpob_treesearch(decoder, poss_meas_outcomes=None,
             # print('its meas status is', this_dec.mOUT_OUT, this_dec.mOUT_Z, this_dec.mOUT_na,
             #                  this_dec.mX_X, this_dec.mX_Z, this_dec.mX_na,
             #                  this_dec.mY_Y, this_dec.mY_Z, this_dec.mY_na,
-            #                  this_dec.mZ_Zdir, this_dec.mZ_Zind, this_dec.mZ_Zdirind, this_dec.mZ_na)
+            #                  this_dec.mZ_Z, this_dec.mZ_na)
             # print('its finished status is', this_dec.finished)
 
             # if there are no possible measurement to do, we have failed and we stop
@@ -68,8 +68,7 @@ def get_FullTdecoder_succpob_treesearch(decoder, poss_meas_outcomes=None,
     succ_prob_poly_terms = [((len(this_dec.mOUT_OUT), len(this_dec.mOUT_Z), len(this_dec.mOUT_na),
                               len(this_dec.mX_X), len(this_dec.mX_Z), len(this_dec.mX_na),
                               len(this_dec.mY_Y), len(this_dec.mY_Z), len(this_dec.mY_na),
-                              len(this_dec.mZ_Zdir), len(this_dec.mZ_Zind), len(this_dec.mZ_Zdirind),
-                              len(this_dec.mZ_na)
+                              len(this_dec.mZ_Z), len(this_dec.mZ_na)
                               ), syndromes_dict_to_tuples(succ_decs_syndromes_dicts[dec_ix]))
                             for dec_ix, this_dec in enumerate(successful_decoders)]
 
@@ -97,10 +96,8 @@ def success_prob_from_poly_expr(t, poly_term, t_xi=1, t_yi=1, t_zi=0):
            ((t * t_yi) ** poly_term[6]) * \
            (((1 - t) * t_zi) ** poly_term[7]) * \
            (((1 - t) * (1 - t_zi) + t * (1 - t_yi)) ** poly_term[8]) * \
-           ((t * (1 - t_zi)) ** poly_term[9]) * \
-           ((t_zi * (1 - t)) ** poly_term[10]) * \
-           ((t_zi * t) ** poly_term[11]) * \
-           ((1 - t - (1 - t) * t_zi) ** poly_term[12])
+           ((t * (1 - t_zi) + t_zi * (1 - t) + t_zi * t) ** poly_term[9]) * \
+           ((1 - t - (1 - t) * t_zi) ** poly_term[10])
 
 
 #### Error-correction part
@@ -170,13 +167,24 @@ def error_prob_from_lookup_dict(lookup_dict, err_prob_X, err_prob_Y=None, err_pr
 
 #### Combine both Loss-Tolerance and Error-Correction
 
-
+#### function that takes the, for given noise values, takes the analytical output of the decoder and converts it into a
+# list of the type
+# [(success prob. for a measurement patter M1,
+# [(error prob given syndr1 and M1, proability to measure syndr1 given M1), ... for all syndromes given M1])
+# , ... for all measurements]
 def prob_structure_from_decoder_analytical_output(analyt_dec_output, t, err_prob_X, err_prob_Y=None, err_prob_Z=None,
                                                   t_xi=1, t_yi=1, t_zi=0, num_prob_thresh=1e-12):
     return [(analyt_dec_output[term]*success_prob_from_poly_expr(t, term[0], t_xi=t_xi, t_yi=t_yi, t_zi=t_zi),
              error_prob_from_lookup_dict(tuples_to_syndromes_dict(term[1]), err_prob_X, err_prob_Y=err_prob_Y,
                                          err_prob_Z=err_prob_Z, num_prob_thresh=num_prob_thresh)
              ) for term in analyt_dec_output]
+
+
+def transm_and_err_prob_from_prob_struct(prob_struct):
+    transm_prob = sum((x[0]*sum((y[1] for y in x[1])) for x in prob_struct))
+    error_prob = sum((x[0]*sum((y[0] * y[1] for y in x[1])) for x in prob_struct)) / transm_prob
+    return transm_prob, error_prob
+
 
 
 ###################################
@@ -219,15 +227,6 @@ if __name__ == '__main__':
 
     from itertools import chain
 
-
-    def powerset(iterable):
-        "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
-        s = list(iterable)
-        return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
-
-
-    branching = None
-
     ## index of the input qubit (output qubit is free)
     in_qubit = 0
 
@@ -258,7 +257,7 @@ if __name__ == '__main__':
     succ_prob_poly_terms = get_FullTdecoder_succpob_treesearch(decod0)
 
     # print()
-    # print(succ_prob_poly_terms)
+    print(succ_prob_poly_terms)
     # print(list(succ_prob_poly_terms.values()))
 
     def tidyup_succ_prob_poly_terms(succ_prob_poly_terms):
@@ -266,11 +265,12 @@ if __name__ == '__main__':
     print(tidyup_succ_prob_poly_terms(succ_prob_poly_terms))
 
 
-    # transm = 0.9
-    # error_prob = 0.1
-    #
-    # prob_struct = prob_structure_from_decoder_analytical_output(succ_prob_poly_terms, transm, error_prob)
-    # print(prob_struct)
+    transm = 0.9
+    error_prob = 0.1
+
+    prob_struct = prob_structure_from_decoder_analytical_output(succ_prob_poly_terms, transm, error_prob)
+    print(prob_struct)
+    print(transm_and_err_prob_from_prob_struct(prob_struct))
 
 
 

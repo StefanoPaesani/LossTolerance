@@ -27,9 +27,7 @@ class FullT_IndMeasDecoder(object):
     'mY_Y': List of qubits in which a Y measure has been tried, and a Y outcome has been obtained.
     'mY_Z': List of qubits in which a Y measure has been tried, and an indirect Z outcome was obtained.
     'mY_na': List of qubits in which a Y measure has been tried, and no outcome was obtained.
-    'mZ_Zdir': List of qubits in which a Z measure has been tried, and a direct Z outcome was obtained but an indirect Z failed.
-    'mZ_Zind': List of qubits in which a Z measure has been tried, and a direct Z outcome failed but an indirect Z outcome was obtained.
-    'mZ_Zdirind': List of qubits in which a Z measure has been tried, where both a direct and indirect Z outcomes were obtained.
+    'mZ_Z': List of qubits in which a Z measure has been tried, and a Z outcome was obtained
     'mZ_na': List of qubits in which a Z measure has been tried, and neither direct or indirect outcomes were obtained.
 
     'new_strategy': True if a new strategy needs to be initialized (eg. because the previous one has failed due to loss).
@@ -54,9 +52,7 @@ class FullT_IndMeasDecoder(object):
         self.mY_Y = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in XY
         self.mY_Z = []  # tracks qubits that we tried to measure in XY, and obtained an outcome in (indirect) Z measurement
         self.mY_na = []  # tracks qubits that we tried to measure in XY, and obtained no outcome
-        self.mZ_Zdir = []  # tracks qubits that we tried to measure in Z, and obtained a direct outcome in Z but no indirect
-        self.mZ_Zind = []  # tracks qubits that we tried to measure in Z, and obtained an indirect outcome in Z but no direct
-        self.mZ_Zdirind = []  # tracks qubits that we tried to measure in Z, and obtained both direct and indirect outcomes in Z
+        self.mZ_Z = []  # tracks qubits that we tried to measure in Z, and obtained a direct outcome in Z
         self.mZ_na = []  # tracks qubits that we tried to measure in Z, and obtained no outcome either direct or indirect
         self.measured_qubits = []  # tracks which qubits have been already measured
         self.lost_qubits = []  # tracks which qubits have been already lost
@@ -84,9 +80,7 @@ class FullT_IndMeasDecoder(object):
         self.mY_Y = []
         self.mY_Z = []
         self.mY_na = []
-        self.mZ_Zdir = []
-        self.mZ_Zind = []
-        self.mZ_Zdirind = []
+        self.mZ_Z = []
         self.mZ_na = []
         self.measured_qubits = []
         self.lost_qubits = []
@@ -272,19 +266,10 @@ class FullT_IndMeasDecoder(object):
                                  ' measurement not recognized, use one in (X, Y, Zind, na)')
         # Update for Z measurements
         elif self.meas_type == 'Z':
-            if outcome_basis in ['Zdir', 'Zind', 'Zdirind']:
-                if outcome_basis == 'Zdir':
-                    if self.printing:
-                        print("qubit is Z ONLY DIRECTLY measured")
-                    self.mZ_Zdir.append(self.meas_qubit_ix)
-                elif outcome_basis == 'Zind':
-                    if self.printing:
-                        print("qubit is Z ONLY INDIRECTLY measured")
-                    self.mZ_Zind.append(self.meas_qubit_ix)
-                else:
-                    if self.printing:
-                        print("qubit is Z measured BOTH DIRECTLY AND INDIRECTLY")
-                    self.mZ_Zdirind.append(self.meas_qubit_ix)
+            if outcome_basis == 'Z':
+                if self.printing:
+                    print("qubit is Z ONLY DIRECTLY measured")
+                self.mZ_Z.append(self.meas_qubit_ix)
                 self.poss_strat_list = self.filter_strats_measured_qubit_fixed_basis(self.meas_type, self.meas_qubit_ix)
             elif outcome_basis == 'na':
                 self.new_strategy = True
@@ -295,7 +280,7 @@ class FullT_IndMeasDecoder(object):
                 self.poss_strat_list = self.filter_strats_lost_qubit(self.meas_qubit_ix)
             else:
                 raise ValueError('Outcome basis ' + outcome_basis + ' for ' + self.meas_type +
-                                 ' measurement not recognized, use one in (Zdir, Zind, Zdirind, na)')
+                                 ' measurement not recognized, use one in (Z, na)')
         else:
             raise ValueError("Measurement basis not recognized, use one in (X, Y, Z)")
 
