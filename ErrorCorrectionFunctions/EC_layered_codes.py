@@ -62,17 +62,15 @@ def casc_errorrate_Y(err_rates_XYZ, layer_ix, N_layers, code_lookup_x, code_look
                                                           err_rate_zi)
             temp_p_y = log_op_error_prob_from_lookup_dict(code_lookup_y[layer_ix - 1], err_rate_xi, err_rate_yi,
                                                           err_rate_zi)
-        p_x = e_x * (1 - temp_p_x) + temp_p_x * (1 - e_x)
-        p_y = e_y * (1 - temp_p_y) + temp_p_y * (1 - e_y)
         if layer_ix == 0:
-            return temp_p_x
+            return temp_p_y
         else:
             p_x = e_x * (1 - temp_p_x) + temp_p_x * (1 - e_x)
             p_y = e_y * (1 - temp_p_y) + temp_p_y * (1 - e_y)
             if layer_ix < N_layers:
                 return min(p_x, p_y)
             else:
-                return p_x
+                return p_y
 
 
 def casc_errorrate_Z(err_rates_XYZ, layer_ix, N_layers, code_lookup_x, code_lookup_y, code_lookup_z,
@@ -143,9 +141,9 @@ def conc_errorrate_Y(err_rates_XYZ, layer_ix, N_layers, code_lookup_x, code_look
         err_rate_zi = conc_errorrate_Z(err_rates_XYZ, layer_ix + 1, N_layers, code_lookup_x, code_lookup_y,
                                        code_lookup_z)
         if isinstance(code_lookup_x, dict):
-            return log_op_error_prob_from_lookup_dict(code_lookup_x, err_rate_xi, err_rate_yi, err_rate_zi)
+            return log_op_error_prob_from_lookup_dict(code_lookup_y, err_rate_xi, err_rate_yi, err_rate_zi)
         else:
-            return log_op_error_prob_from_lookup_dict(code_lookup_x[layer_ix - 1], err_rate_xi, err_rate_yi,
+            return log_op_error_prob_from_lookup_dict(code_lookup_y[layer_ix - 1], err_rate_xi, err_rate_yi,
                                                       err_rate_zi)
 
 
@@ -163,9 +161,9 @@ def conc_errorrate_Z(err_rates_XYZ, layer_ix, N_layers, code_lookup_x, code_look
         err_rate_zi = conc_errorrate_Z(err_rates_XYZ, layer_ix + 1, N_layers, code_lookup_x, code_lookup_y,
                                        code_lookup_z)
         if isinstance(code_lookup_x, dict):
-            return log_op_error_prob_from_lookup_dict(code_lookup_x, err_rate_xi, err_rate_yi, err_rate_zi)
+            return log_op_error_prob_from_lookup_dict(code_lookup_z, err_rate_xi, err_rate_yi, err_rate_zi)
         else:
-            return log_op_error_prob_from_lookup_dict(code_lookup_x[layer_ix - 1], err_rate_xi, err_rate_yi,
+            return log_op_error_prob_from_lookup_dict(code_lookup_z[layer_ix - 1], err_rate_xi, err_rate_yi,
                                                       err_rate_zi)
 
 

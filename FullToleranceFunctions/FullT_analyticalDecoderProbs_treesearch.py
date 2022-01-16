@@ -85,11 +85,12 @@ def get_FullTdecoder_succpob_treesearch(decoder, poss_meas_outcomes=None,
 ######################################
 
 #### Loss-tolerance part
-def success_prob_from_poly_expr(t, poly_term, t_xi=1, t_yi=1, t_zi=0):
-    t_xyi = max(t_xi, t_yi)
-    return ((t * t_xyi) ** poly_term[0]) * \
+def success_prob_from_poly_expr(t, poly_term, t_xi=1, t_yi=1, t_zi=0, t_out=None):
+    if t_out == None:
+        t_out = max(t_xi, t_yi)
+    return ((t * t_out) ** poly_term[0]) * \
            (((1 - t) * t_zi) ** poly_term[1]) * \
-           (((1 - t) * (1 - t_zi) + t * (1 - t_xyi)) ** poly_term[2]) * \
+           (((1 - t) * (1 - t_zi) + t * (1 - t_out)) ** poly_term[2]) * \
            ((t * t_xi) ** poly_term[3]) * \
            (((1 - t) * t_zi) ** poly_term[4]) * \
            (((1 - t) * (1 - t_zi) + t * (1 - t_xi)) ** poly_term[5]) * \
@@ -173,18 +174,27 @@ def error_prob_from_lookup_dict(lookup_dict, err_prob_X, err_prob_Y=None, err_pr
 # [(error prob given syndr1 and M1, proability to measure syndr1 given M1), ... for all syndromes given M1])
 # , ... for all measurements]
 def prob_structure_from_decoder_analytical_output(analyt_dec_output, t, err_prob_X, err_prob_Y=None, err_prob_Z=None,
-                                                  t_xi=1, t_yi=1, t_zi=0, num_prob_thresh=1e-12):
-    return [(analyt_dec_output[term]*success_prob_from_poly_expr(t, term[0], t_xi=t_xi, t_yi=t_yi, t_zi=t_zi),
+                                                  t_xi=1, t_yi=1, t_zi=0, t_out=None, num_prob_thresh=1e-12):
+    return [(analyt_dec_output[term] * success_prob_from_poly_expr(t, term[0], t_xi=t_xi, t_yi=t_yi, t_zi=t_zi,
+                                                                   t_out=t_out),
              error_prob_from_lookup_dict(tuples_to_syndromes_dict(term[1]), err_prob_X, err_prob_Y=err_prob_Y,
-                                         err_prob_Z=err_prob_Z, num_prob_thresh=num_prob_thresh)
-             ) for term in analyt_dec_output]
+                                         err_prob_Z=err_prob_Z, num_prob_thresh=num_prob_thresh)) for term in
+            analyt_dec_output]
 
 
 def transm_and_err_prob_from_prob_struct(prob_struct):
-    transm_prob = sum((x[0]*sum((y[1] for y in x[1])) for x in prob_struct))
-    error_prob = sum((x[0]*sum((y[0] * y[1] for y in x[1])) for x in prob_struct)) / transm_prob
+    transm_prob = sum((x[0] * sum((y[1] for y in x[1])) for x in prob_struct))
+    error_prob = sum((x[0] * sum((y[0] * y[1] for y in x[1])) for x in prob_struct)) / transm_prob
     return transm_prob, error_prob
 
+
+def code_probs_from_decoder_output(analyt_dec_output, t, err_prob_X, err_prob_Y=None, err_prob_Z=None,
+                                   t_xi=1, t_yi=1, t_zi=0, t_out=None, num_prob_thresh=1e-12):
+    return transm_and_err_prob_from_prob_struct(
+        prob_structure_from_decoder_analytical_output(analyt_dec_output, t, err_prob_X=err_prob_X,
+                                                      err_prob_Y=err_prob_Y, err_prob_Z=err_prob_Z, t_xi=t_xi,
+                                                      t_yi=t_yi, t_zi=t_zi, t_out=t_out,
+                                                      num_prob_thresh=num_prob_thresh))
 
 
 ###################################
@@ -258,12 +268,15 @@ if __name__ == '__main__':
 
     # print()
     print(succ_prob_poly_terms)
+
+
     # print(list(succ_prob_poly_terms.values()))
 
     def tidyup_succ_prob_poly_terms(succ_prob_poly_terms):
         return dict(zip([x[0] for x in succ_prob_poly_terms], succ_prob_poly_terms.values()))
-    print(tidyup_succ_prob_poly_terms(succ_prob_poly_terms))
 
+
+    print(tidyup_succ_prob_poly_terms(succ_prob_poly_terms))
 
     transm = 0.9
     error_prob = 0.1
@@ -271,9 +284,6 @@ if __name__ == '__main__':
     prob_struct = prob_structure_from_decoder_analytical_output(succ_prob_poly_terms, transm, error_prob)
     print(prob_struct)
     print(transm_and_err_prob_from_prob_struct(prob_struct))
-
-
-
 
     # ##### Plots
     # gstate.image(input_qubits=[in_qubit])
