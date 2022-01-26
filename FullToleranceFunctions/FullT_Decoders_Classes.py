@@ -64,6 +64,7 @@ class FullT_IndMeasDecoder(object):
         self.meas_config = []
 
         self.printing = printing
+        self.decoder_type = 'IndMeas'
 
         # Find all valid strategies for the decoder, and initialize its state to be capable to access all of them
         self.all_strats = self.get_indirect_meas_strats()
@@ -156,8 +157,7 @@ class FullT_IndMeasDecoder(object):
                 # more compatible stabilizers than the existing case (from EC decoders), and if the weight of the
                 # logical operator is smaller (from LT decoders).
                 else:
-                    previous_stabs = all_meas[this_meas][1]
-                    if len(meas_comp_stabs) >= len(previous_stabs):
+                    if len(meas_comp_stabs) >= len(all_meas[this_meas][1]):
                         if log_op_val < all_meas[this_meas][2]:
                             all_meas[this_meas] = (log_op_stab, meas_comp_stabs, log_op_val)
         return all_meas
@@ -181,7 +181,6 @@ class FullT_IndMeasDecoder(object):
     def decide_next_meas(self):
         if self.new_strategy:
             self.decide_new_strat()
-            self.new_strategy = False
         if self.printing:
             print("testing measurement meas_config", self.meas_config)
 
@@ -293,6 +292,8 @@ class FullT_TeleportationDecoder(object):
     The state of the decoder is identified by the variables:
     'poss_strat_list': list of remaining strategies (dicts of measures, compatible stabilizers, ...) available to the decoder.
     'meas_config': current strategy of the decoder.
+    'out_qubit_ix': index of qubit currently identified as output.
+    'meas_out': identifies the current state of the output. True if it has already been measured in an arbitrary basis.
 
     'measured_qubits': List of qubits that have already been measured.
     'qubits_to_measure': List of qubits that still have to be measured.
@@ -318,6 +319,8 @@ class FullT_TeleportationDecoder(object):
         self.gstate = gstate
         self.n_qbts = len(self.gstate)
         self.in_qubit = in_qubit
+        self.out_qubit_ix = in_qubit  # tracks the index of the current output qubit
+        self.meas_out = False  # tracks if the output qubit for current strategy has already been measured or not
         self.pref_pauli = pref_pauli
         self.meas_qubit_ix = 0  # Index of next qubit to be measured
         self.meas_type = 'I'  # Pauli operator to be measured next
@@ -341,12 +344,15 @@ class FullT_TeleportationDecoder(object):
         self.meas_config = []
 
         self.printing = printing
+        self.decoder_type = 'Teleport'
 
         # Find all valid strategies for the decoder, and initialize its state to be capable to access all of them
         self.all_strats = self.get_teleportation_strats()
         self.poss_strat_list = self.all_strats
 
     def reset_decoder_state(self):
+        self.meas_out = False
+        self.out_qubit_ix = in_qubit
         self.meas_qubit_ix = 0
         self.meas_type = 'I'
         self.mOUT_OUT = []
@@ -385,13 +391,20 @@ class FullT_TeleportationDecoder(object):
                 # print(stab_ix1, stab1, stab_ix2, stab2, anticomm_qbts)
                 ## checks that there are exactly two qubits with anticommuting Paulis: the input and an output
                 if len(anticomm_qbts) == 2 and self.in_qubit in anticomm_qbts:
+                    out_qubit = [x for x in anticomm_qbts if x != self.in_qubit][0]
                     compatible_stabs = filter_stabs_given_qubits_ops(all_stabs,
                                                                      {anticomm_qbts[0]: 'I', anticomm_qbts[1]: 'I'})
                     non_inout_qubits = [ix for ix in range(self.n_qbts) if ix not in anticomm_qbts]
                     non_inout_paulis = [stab1[ix] if stab1[ix] != 'I' else stab2[ix] for ix in non_inout_qubits]
+                    # non_inout_measlist = dict((x, non_inout_paulis[ix]) for x, ix in non_inout_qubits)
                     compatible_stabs = filter_stabs_compatible_qubits_ops(compatible_stabs,
                                                                           dict(zip(non_inout_qubits, non_inout_paulis)))
                     # print('good inout, compatible_stabs:', compatible_stabs)
+
+                    tele_strat_weight = self.n_qbts - non_inout_paulis.count('I')
+                    tele_strat_prefpauli_weight = non_inout_paulis.count(self.pref_pauli) / (tele_strat_weight + 1)
+                    tele_strat_val = tele_strat_weight - tele_strat_prefpauli_weight
+
                     poss_ops_list = [['I'] if ix in anticomm_qbts else [] for ix in range(self.n_qbts)]
                     free_qubits = []
                     for ix in range(self.n_qbts):
@@ -414,67 +427,195 @@ class FullT_TeleportationDecoder(object):
                         meas_comp_stabs = filter_stabs_measurement_compatible(compatible_stabs, this_meas)
                         ## Uses these stabilizers for this measurement if this_meas is not already included
                         if this_meas not in all_meas:
-                            all_meas[this_meas] = ((anticomm_qbts, (stab1, stab2)), meas_comp_stabs)
-                        ## If this_meas was already included, updated its strategy to this stabs if they are more than the
-                        ## previous case, or if they are the same number but contain more of the prefered Pauli operator.
+                            all_meas[this_meas] = (
+                                (out_qubit, (stab1, stab2)), meas_comp_stabs, tele_strat_val)
                         else:
-                            previous_stabs = all_meas[this_meas][1]
-                            if (len(meas_comp_stabs) > len(previous_stabs)) or (
-                                    len(meas_comp_stabs) == len(previous_stabs) and count_target_pauli_in_stabs(meas_comp_stabs, self.pref_pauli) > count_target_pauli_in_stabs(previous_stabs, self.pref_pauli)): all_meas[this_meas] = ((anticomm_qbts, (stab1, stab2)), meas_comp_stabs)
+                            # If this_meas was already included, updated its strategy to this measurement if there are equal or
+                            # more compatible stabilizers than the existing case (from EC decoders), and if the weight of the
+                            # logical operator is smaller (from LT decoders).
+                            if len(meas_comp_stabs) >= len(all_meas[this_meas][1]):
+                                if tele_strat_val < all_meas[this_meas][2]:
+                                    all_meas[this_meas] = (
+                                        (out_qubit, (stab1, stab2)), meas_comp_stabs, tele_strat_val)
         return all_meas
 
-        # all_meas = {}
-        # for log_op_stab in filtered_stabs_ind_meas_only:
-        #     # print('\nlog_op_stab:', log_op_stab)
-        #     log_op_weight = self.n_qbts - log_op_stab.count('I')
-        #     log_op_prefpauli_weight = log_op_stab.count(self.pref_pauli) / (log_op_weight + 1)
-        #     log_op_val = log_op_weight - log_op_prefpauli_weight
-        #     ### Get only the stabilizers that are also compatible with this logical operator
-        #     compatible_syndromes = filter_stabs_indmeas_compatible(filtered_stabs_ind_meas_syndr, log_op_stab,
-        #                                                            self.in_qubit)
-        #     # print('compatible_stabs', compatible_syndromes)
-        #     poss_ops_list = [[self.indmeas_pauli] if ix == self.in_qubit else [] for ix in range(self.n_qbts)]
-        #     free_qubits = []
-        #     ### Populate the measurement bases that are fixed and given by logical operator stabilizer
-        #     for ix in range(self.n_qbts):
-        #         # print('qbt_ix:', ix)
-        #         if ix != self.in_qubit:
-        #             if log_op_stab[ix] != 'I':
-        #                 # print('occupied qbt')
-        #                 poss_ops_list[ix] = [log_op_stab[ix]]
-        #             else:
-        #                 # print('free qubt')
-        #                 free_qubits.append(ix)
-        #     ### For all free qubits, include 'I' (loss) as a possible compatible measurement
-        #     for ix in free_qubits:
-        #         poss_ops_list[ix].append('I')
-        #     # print('free_qubits:', free_qubits)
-        #     ### Find all possible measurement bases for qubits with bases not fixed by the logical operator considered
-        #     for this_comp_stab in compatible_syndromes:
-        #         for ix, this_op in enumerate(this_comp_stab):
-        #             if ix in free_qubits:
-        #                 if this_op not in poss_ops_list[ix]:
-        #                     poss_ops_list[ix].append(this_op)
-        #     ### Find all possible measurements
-        #     this_strat_all_meas = (''.join(ops) for ops in product(*poss_ops_list))
-        #
-        #     this_strat_all_meas = list(this_strat_all_meas)
-        #     # print('this_strat_all_meas:', this_strat_all_meas)
-        #     ### Update the all_meas dictionary using the measurements compatible with this logical operator.
-        #     for this_meas in this_strat_all_meas:
-        #         meas_comp_stabs = filter_stabs_measurement_compatible(compatible_syndromes, this_meas)
-        #         ## Uses these stabilizers for this measurement if this_meas is not already included
-        #         if this_meas not in all_meas:
-        #             all_meas[this_meas] = (log_op_stab, meas_comp_stabs, log_op_val)
-        #         # If this_meas was already included, updated its strategy to this measurement if there are equal or
-        #         # more compatible stabilizers than the existing case (from EC decoders), and if the weight of the
-        #         # logical operator is smaller (from LT decoders).
-        #         else:
-        #             previous_stabs = all_meas[this_meas][1]
-        #             if len(meas_comp_stabs) >= len(previous_stabs):
-        #                 if log_op_val < all_meas[this_meas][2]:
-        #                     all_meas[this_meas] = (log_op_stab, meas_comp_stabs, log_op_val)
-        # return all_meas
+    ###### Strategy decisions functions
+
+    def decide_new_strat(self):
+        ## If an output has been measured, try to see if there remain strategies with that as output.
+        if self.meas_out:
+            looked_strats = dict((x, self.poss_strat_list[x]) for x in self.poss_strat_list
+                                 if self.poss_strat_list[x][0][0] == self.out_qubit_ix)
+        else:
+            looked_strats = self.poss_strat_list
+        if len(looked_strats) == 0:
+            looked_strats = self.poss_strat_list
+            self.meas_out = False
+        # get strategies with minimal logical operator weight (from LT decoders)
+        min_weight = min([looked_strats[x][2] for x in looked_strats])
+        temp_strats = dict((k, looked_strats[k]) for k in looked_strats
+                           if looked_strats[k][2] == min_weight)
+        # between the selected strategies, get the one with maximal number of syndrome stabilizers, considering also
+        # a preferred Pauli basis (from EC decoders).
+        best_meas = max(temp_strats, key=lambda x: len(self.poss_strat_list[x][1]) + (
+            0 if len(self.poss_strat_list[x][1]) == 0 else count_target_pauli_in_stabs(self.poss_strat_list[x][1],
+                                                                                       self.pref_pauli) / (
+                                                                   self.n_qbts * len(self.poss_strat_list[x][1]))))
+        chosen_strat = temp_strats[best_meas]
+        if not self.meas_out:
+            self.out_qubit_ix = chosen_strat[0][0]
+
+        self.meas_config = (best_meas, temp_strats[best_meas])
+        self.new_strategy = False
+
+    def decide_next_meas(self):
+        if self.new_strategy:
+            self.decide_new_strat()
+        if self.printing:
+            print("testing measurement meas_config", self.meas_config)
+
+        # if the output qubit has to be measured, try to measure it.
+        if not self.meas_out:
+            self.meas_qubit_ix = self.out_qubit_ix
+            self.meas_type = 'Out'
+        else:
+
+            # first try to see if there are qubits to measure in the teleportation stabilizers.
+            self.qubits_to_measure = [x for x, pauli_op in enumerate(self.meas_config[0]) if (
+                    (x not in [self.in_qubit, self.meas_qubit_ix]) and (x not in self.measured_qubits) and (
+                    (self.meas_config[1][0][1][0][x] != 'I') or (self.meas_config[1][0][1][1][x] != 'I')))]
+            # If no qubits in the logical operators are left to measure, try all including the others
+            if not self.qubits_to_measure:
+                self.qubits_to_measure = [x for x, pauli_op in enumerate(self.meas_config[0]) if
+                                          ((x not in self.measured_qubits) and (pauli_op != 'I'))]
+            # If there are still no qubits left, we have measured all of them!
+            if not self.qubits_to_measure:
+                if self.printing:
+                    print("SUCCEDING: no more qubits to measure")
+                # If there are no more qubits to measure, we've succeded and we stop.
+                self.finished = True
+                self.meas_qubit_ix = 0
+                self.meas_type = 'I'
+            else:
+                qubits_to_measure_in_XYs = [x for x in self.qubits_to_measure if self.meas_config[0][x] in ['X', 'Y']]
+                # Pick one of the qubits (starting from the largest one, inspired by trees)
+                # Qubits to be measured in XYs are measured first.
+                if len(qubits_to_measure_in_XYs) > 0:
+                    self.meas_qubit_ix = qubits_to_measure_in_XYs[-1]
+                else:
+                    self.meas_qubit_ix = self.qubits_to_measure[-1]
+                self.meas_type = self.meas_config[0][self.meas_qubit_ix]
+                if self.printing:
+                    print("measuring qubit", self.meas_qubit_ix, "in basis", self.meas_type)
+
+    ##### Filtering functions to update indirect measurements stategies after trying to measure a qubit
+
+    # keeps only stabilizers in which the lost_qbt_ix is allowed to be lost
+    def filter_strats_lost_qubit(self, lost_qbt_ix):
+        return dict((k, self.poss_strat_list[k]) for k in self.poss_strat_list if
+                    (k[lost_qbt_ix] == 'I' and self.poss_strat_list[k][0][0] != lost_qbt_ix))
+
+    # keeps only the stabilizers in which the meas_qbt_ix is the fixed basis measured or in 'I'
+    # (for qubits measured in fixed basis that cannot anymore be measured in other bases)
+    def filter_strats_measured_qubit_fixed_basis(self, fixed_basis, meas_qbt_ix):
+        return dict((k, self.poss_strat_list[k]) for k in self.poss_strat_list if
+                    (k[meas_qbt_ix] in [fixed_basis, 'I'] and self.poss_strat_list[k][0][0] != meas_qbt_ix))
+
+    # keeps only the stabilizers in which the meas_qbt_ix is an output or require measuring it 'I'
+    # (for qubits measured in arbitrary output bases)
+
+    def filter_strats_measured_output(self, meas_qbt_ix):
+        return dict((k, self.poss_strat_list[k]) for k in self.poss_strat_list if
+                    (k[meas_qbt_ix] == 'I' or self.poss_strat_list[k][0][0] == meas_qbt_ix))
+
+    ##### Decoder updating function upon measurement trials
+
+    ### TODO: updating function for teleportation still undone
+
+    def update_decoder_after_measure(self, outcome_basis):
+        # Update for X or Y measurements
+        self.measured_qubits.append(self.meas_qubit_ix)
+        # Update for output measurements (arbitrary basis)
+        if self.meas_type == 'Out':
+            if outcome_basis == self.meas_type:
+                if self.printing:
+                    print("qubit is FULLY MEASURED AS OUTPUT")
+                self.meas_out = True
+                self.mOUT_OUT.append(self.meas_qubit_ix)
+                self.poss_strat_list = self.filter_strats_measured_output(self.meas_qubit_ix)
+            elif outcome_basis == 'Zind':
+                # if direct X or Y meas failed, we can still indirectly measure it in Z from the layer below
+                # before starting a new strategy.
+                self.new_strategy = True
+                if self.printing:
+                    print('Direct' + self.meas_type + ' output meas failed, but qubit was Z inDIRECTLY MEASURED')
+                self.mOUT_Z.append(self.meas_qubit_ix)
+                self.poss_strat_list = self.filter_strats_measured_qubit_fixed_basis('Z', self.meas_qubit_ix)
+            elif outcome_basis == 'na':
+                self.new_strategy = True
+                if self.printing:
+                    print('Output measurement failed to provide any outcome, qubit is LOST')
+                self.lost_qubits.append(self.meas_qubit_ix)
+                self.mOUT_na.append(self.meas_qubit_ix)
+                self.poss_strat_list = self.filter_strats_lost_qubit(self.meas_qubit_ix)
+            else:
+                raise ValueError('Outcome basis ' + outcome_basis + ' for ' + self.meas_type +
+                                 ' measurement not recognized, use one in (Out, Zind, na)')
+        # Update for 'X' or 'Y' measurements
+        elif self.meas_type in ['X', 'Y']:
+            if outcome_basis == self.meas_type:
+                if self.printing:
+                    print("qubit is X or Y FULLY MEASURED")
+                if self.meas_type == 'X':
+                    self.mX_X.append(self.meas_qubit_ix)
+                elif self.meas_type == 'Y':
+                    self.mY_Y.append(self.meas_qubit_ix)
+                self.poss_strat_list = self.filter_strats_measured_qubit_fixed_basis(self.meas_type,
+                                                                                     self.meas_qubit_ix)
+            elif outcome_basis == 'Zind':
+                # if direct X or Y meas failed, we can still indirectly measure it in Z from the layer below
+                # before starting a new strategy.
+                self.new_strategy = True
+                if self.printing:
+                    print('Direct' + self.meas_type + 'meas failed, but qubit was Z inDIRECTLY MEASURED')
+                if self.meas_type == 'X':
+                    self.mX_Z.append(self.meas_qubit_ix)
+                elif self.meas_type == 'Y':
+                    self.mY_Z.append(self.meas_qubit_ix)
+                self.poss_strat_list = self.filter_strats_measured_qubit_fixed_basis('Z', self.meas_qubit_ix)
+            elif outcome_basis == 'na':
+                self.new_strategy = True
+                if self.printing:
+                    print('Measurement in ' + self.meas_type + 'failed to provide any outcome, qubit is LOST')
+                self.lost_qubits.append(self.meas_qubit_ix)
+                if self.meas_type == 'X':
+                    self.mX_na.append(self.meas_qubit_ix)
+                elif self.meas_type == 'Y':
+                    self.mY_na.append(self.meas_qubit_ix)
+                self.poss_strat_list = self.filter_strats_lost_qubit(self.meas_qubit_ix)
+            else:
+                raise ValueError('Outcome basis ' + outcome_basis + ' for ' + self.meas_type +
+                                 ' measurement not recognized, use one in (X, Y, Zind, na)')
+        # Update for Z measurements
+        elif self.meas_type == 'Z':
+            if outcome_basis == 'Z':
+                if self.printing:
+                    print("qubit is Z ONLY DIRECTLY measured")
+                self.mZ_Z.append(self.meas_qubit_ix)
+                self.poss_strat_list = self.filter_strats_measured_qubit_fixed_basis(self.meas_type,
+                                                                                     self.meas_qubit_ix)
+            elif outcome_basis == 'na':
+                self.new_strategy = True
+                if self.printing:
+                    print('Measurement in ' + self.meas_type + 'failed to provide any outcome, qubit is LOST')
+                self.lost_qubits.append(self.meas_qubit_ix)
+                self.mZ_na.append(self.meas_qubit_ix)
+                self.poss_strat_list = self.filter_strats_lost_qubit(self.meas_qubit_ix)
+            else:
+                raise ValueError('Outcome basis ' + outcome_basis + ' for ' + self.meas_type +
+                                 ' measurement not recognized, use one in (Z, na)')
+        else:
+            raise ValueError("Measurement basis not recognized, use one in ('Out', 'X', 'Y', 'Z')")
 
 
 ########################################################################################################################
@@ -490,13 +631,6 @@ if __name__ == '__main__':
 
     from itertools import chain
 
-
-    def powerset(iterable):
-        "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
-        s = list(iterable)
-        return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
-
-
     branching = None
 
     ## index of the input qubit (output qubit is free)
@@ -509,18 +643,18 @@ if __name__ == '__main__':
     # graph = gen_tree_graph(branching)
     # gstate = GraphState(graph)
 
-    ## fully connected graph
-    graph = gen_fullyconnected_graph(4)
-    gstate = GraphState(graph)
+    # ## fully connected graph
+    # graph = gen_fullyconnected_graph(4)
+    # gstate = GraphState(graph)
 
     # ### ring graph
     # graph = gen_ring_graph(5)
     # gstate = GraphState(graph)
 
-    # ## Graph equivalent to L543021 with loss-tolerance
-    # graph_nodes = list(range(6))
-    # graph_edges = [(0,1), (1,2), (2,3), (3,4), (4,0), (1,5), (3, 6)]
-    # gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
+    ## Graph equivalent to L543021 with loss-tolerance
+    graph_nodes = list(range(6))
+    graph_edges = [(0,1), (1,2), (2,3), (3,4), (4,0), (1,5), (3, 6)]
+    gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
 
     # ### Generate random graph
     # graph = gen_random_connected_graph(6)
@@ -535,10 +669,11 @@ if __name__ == '__main__':
     meas_pauli = 'Y'
 
     ## initialize the decoder
-    IndMeas_decoder = FullT_IndMeasDecoder(gstate, meas_pauli, in_qubit, printing=True)
+    # Decoder = FullT_IndMeasDecoder(gstate, meas_pauli, in_qubit, printing=True)
+    Decoder = FullT_TeleportationDecoder(gstate, in_qubit, printing=True)
 
     print('\nFinal families:')
-    print(IndMeas_decoder.all_strats)
+    print(Decoder.all_strats)
 
     # print('\nCurrent strat:')
     # print(IndMeas_decoder.meas_config, IndMeas_decoder.new_strategy)
@@ -547,5 +682,5 @@ if __name__ == '__main__':
     # print('Current strat:')
     # print(IndMeas_decoder.meas_config, IndMeas_decoder.new_strategy)
 
-    IndMeas_decoder.decide_next_meas()
-    IndMeas_decoder.decide_next_meas()
+    Decoder.decide_next_meas()
+    Decoder.decide_next_meas()

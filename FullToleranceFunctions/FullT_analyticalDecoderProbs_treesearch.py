@@ -23,15 +23,17 @@ def get_FullTdecoder_succpob_treesearch(decoder, poss_meas_outcomes=None,
         temp_run_decs = []
         temp_finish_decs = []
         for this_dec in list_running_decs:
-            # print()
-            # print('Looking at decoder with meas_config', this_dec.meas_config)
-            # print('Needs new meas_config?', this_dec.new_strategy)
-            # print('its strat list is', this_dec.poss_strat_list)
-            # print('its meas status is', this_dec.mOUT_OUT, this_dec.mOUT_Z, this_dec.mOUT_na,
-            #                  this_dec.mX_X, this_dec.mX_Z, this_dec.mX_na,
-            #                  this_dec.mY_Y, this_dec.mY_Z, this_dec.mY_na,
-            #                  this_dec.mZ_Z, this_dec.mZ_na)
-            # print('its finished status is', this_dec.finished)
+            print()
+            print('Looking at decoder with meas_config', this_dec.meas_config)
+            print('Needs new meas_config?', this_dec.new_strategy)
+            print('its strat list is', this_dec.poss_strat_list)
+            print('its meas status is', this_dec.mOUT_OUT, this_dec.mOUT_Z, this_dec.mOUT_na,
+                             this_dec.mX_X, this_dec.mX_Z, this_dec.mX_na,
+                             this_dec.mY_Y, this_dec.mY_Z, this_dec.mY_na,
+                             this_dec.mZ_Z, this_dec.mZ_na)
+            if this_dec.decoder_type == 'Teleport':
+                print('output status is:', this_dec.out_qubit_ix, this_dec.meas_out)
+            print('its finished status is', this_dec.finished)
 
             # if there are no possible measurement to do, we have failed and we stop
             if not this_dec.poss_strat_list:
@@ -59,11 +61,21 @@ def get_FullTdecoder_succpob_treesearch(decoder, poss_meas_outcomes=None,
 
     ### Perform error-correction analysis on the decoders that succesffuly finished
     successful_decoders = [this_dec for this_dec in list_finished_decs if this_dec.on_track]
-    succ_decs_syndromes_dicts = [
-        calculate_syndromes_dictionary_single_ind_meas(this_dec.meas_config[0], this_dec.meas_config[1][0],
-                                                       this_dec.meas_config[1][1], this_dec.in_qubit,
-                                                       include_direct_meas=include_direct_meas,
-                                                       max_error_num=max_error_num) for this_dec in successful_decoders]
+    if this_dec.decoder_type == 'IndMeas':
+        succ_decs_syndromes_dicts = [
+            calculate_syndromes_dictionary_single_ind_meas(this_dec.meas_config[0], this_dec.meas_config[1][0],
+                                                           this_dec.meas_config[1][1], this_dec.in_qubit,
+                                                           include_direct_meas=include_direct_meas,
+                                                           max_error_num=max_error_num) for this_dec in
+            successful_decoders]
+    elif this_dec.decoder_type == 'Teleport':
+        succ_decs_syndromes_dicts = [
+            calculate_syndromes_dictionary_teleport(this_dec.meas_config[0], this_dec.meas_config[1][0][1][0],
+                                                    this_dec.meas_config[1][0][1][1], this_dec.meas_config[1][1],
+                                                    this_dec.in_qubit, this_dec.meas_config[1][0][0],
+                                                    max_error_num=max_error_num) for this_dec in successful_decoders]
+    else:
+        raise ValueError("decoder_type can only be in ['IndMeas', 'Teleport']")
 
     succ_prob_poly_terms = [((len(this_dec.mOUT_OUT), len(this_dec.mOUT_Z), len(this_dec.mOUT_na),
                               len(this_dec.mX_X), len(this_dec.mX_Z), len(this_dec.mX_na),
@@ -107,6 +119,7 @@ def success_prob_from_poly_expr(t, poly_term, t_xi=1, t_yi=1, t_zi=0, t_out=None
 # probability structures
 def calculate_prob_from_struct_coeff_dict(err_prob_structs_coeffs_dict, err_prob_X, err_prob_Y=None,
                                           err_prob_Z=None):
+    # print('calculating error rate for error struct:', err_prob_structs_coeffs_dict)
     if err_prob_Y is None:
         err_prob_Y = err_prob_X
     if err_prob_Z is None:
@@ -118,6 +131,7 @@ def calculate_prob_from_struct_coeff_dict(err_prob_structs_coeffs_dict, err_prob
             temp_prob += struct_coeff * ((1 - err_prob_X) ** err_prob_struct[0]) * (err_prob_X ** err_prob_struct[1]) * \
                          ((1 - err_prob_Y) ** err_prob_struct[2]) * (err_prob_Y ** err_prob_struct[3]) * \
                          ((1 - err_prob_Z) ** err_prob_struct[4]) * (err_prob_Z ** err_prob_struct[5])
+    # print('returning ', temp_prob)
     return temp_prob
 
 
@@ -158,7 +172,8 @@ def error_prob_from_lookup_dict(lookup_dict, err_prob_X, err_prob_Y=None, err_pr
                 [calculate_prob_from_struct_coeff_dict(lookup_dict[syndr][log_ops_errors],
                                                        err_prob_X, err_prob_Y,
                                                        err_prob_Z) / syndr_probs[syndr]
-                 for log_ops_errors in lookup_dict[syndr]])
+                 for log_ops_errors in lookup_dict[syndr] if lookup_dict[syndr][log_ops_errors]])
+            # print('Returned minimal error:', error_probs_syndromes[syndr])
         else:
             error_probs_syndromes[syndr] = 0
     ### Get final probability
@@ -236,7 +251,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from CodesFunctions.graphs import *
     import networkx as nx
-    from FullToleranceFunctions.FullT_Decoders_Classes import FullT_IndMeasDecoder
+    from FullToleranceFunctions.FullT_Decoders_Classes import FullT_IndMeasDecoder, FullT_TeleportationDecoder
 
     from itertools import chain
 
@@ -245,17 +260,21 @@ if __name__ == '__main__':
 
     ## define graph state
 
-    # three graph
-    # branching = [2, 2]
+    ## three graph
+    # branching = [3]
     # graph = gen_tree_graph(branching)
     # gstate = GraphState(graph)
 
-    ## fully connected graph
-    graph = gen_fullyconnected_graph(4)
+    # ## fully connected graph
+    # graph = gen_fullyconnected_graph(4)
+    # gstate = GraphState(graph)
+
+    ### ring graph
+    graph = gen_ring_graph(3)
     gstate = GraphState(graph)
 
-    # ### ring graph
-    # graph = gen_ring_graph(5)
+    # ### star graph
+    # graph = gen_star_graph(3)
     # gstate = GraphState(graph)
 
     ##############################################################
@@ -265,7 +284,8 @@ if __name__ == '__main__':
     plt.show()
 
     # decod0 = LT_FullDecoder(gstate, in_qubit)
-    decod0 = FullT_IndMeasDecoder(gstate, 'Y', in_qubit)
+    # decod0 = FullT_IndMeasDecoder(gstate, 'Y', in_qubit)
+    decod0 = FullT_TeleportationDecoder(gstate, in_qubit)
 
     succ_prob_poly_terms = get_FullTdecoder_succpob_treesearch(decod0)
 
