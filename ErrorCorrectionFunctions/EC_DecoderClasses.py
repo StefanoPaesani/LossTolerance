@@ -246,10 +246,9 @@ def calculate_syndromes_dictionary_single_ind_meas(measurement, log_op, syndr_st
 # for all possible errors and a given measurement.
 # Returns a dictionary of the form:
 # {syndrome: {0: prob_struct_coeffs_dict_for_not_flipped, 1: prob_struct_coeffs_dict_for_flipped}, ...}
-def calculate_syndromes_dictionary_teleport(measurement, log_op1, log_op2, syndr_stabs_list, inout_qubits,
+def calculate_syndromes_dictionary_teleport(measurement, log_op1, log_op2, syndr_stabs_list, input_qubit, out_qubit,
                                             max_error_num=None):
-    input_qubit = inout_qubits[0]
-    qbts_indices = [i for i, _ in enumerate(measurement) if i not in inout_qubits]
+    qbts_indices = [i for i, _ in enumerate(measurement) if i not in [input_qubit, out_qubit]]
     # print('qbts_indices', qbts_indices)
     stabs_for_decoder = syndr_stabs_list
     if max_error_num is None:
@@ -328,7 +327,7 @@ def teleportation_EC_decoder(graph_state, in_qubit, pref_pauli='Z', max_error_nu
         # print('best_meas', best_meas)
         # print('best_fam', best_fam)
         return calculate_syndromes_dictionary_teleport(best_meas, best_fam[0][1][0], best_fam[0][1][1], best_fam[1],
-                                                       best_fam[0][0], max_error_num=max_error_num)
+                                                       best_fam[0][0][0], best_fam[0][0][1], max_error_num=max_error_num)
     else:
         return False
 
