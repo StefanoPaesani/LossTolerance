@@ -15,7 +15,7 @@ I_mat = np.identity(2)
 
 
 def simulate_qd_scheme(spin_gates_list, print_circuit=False):
-    """QDfunctions that calculates the state vectors of the QD spin (0-th qubit) and of the photonic qubits after the
+    """OldQDfunctions that calculates the state vectors of the QD spin (0-th qubit) and of the photonic qubits after the
     pulse sequence. spin_gates_list. Returns the state vector. If print_circuit is True, the simulated circuit is
     printed.
 
@@ -75,7 +75,7 @@ def get_singlequbitU_total_matr(n, single_qubit_U, num_qbts):
 
 
 def hadamards_to_uniform(state, num_qbts=None):
-    """QDfunctions that, if a state doe not have uniform amplitudes, tries to apply Hadamards to obtain a uniform
+    """OldQDfunctions that, if a state doe not have uniform amplitudes, tries to apply Hadamards to obtain a uniform
     superposition. Assumes that the amplitude for |00..00> is nonzero.
     """
 
@@ -104,7 +104,7 @@ def hadamards_to_uniform(state, num_qbts=None):
 
 
 def does_qd_give_graph(spin_gates_list, accept_hadamards=True, print_error=False):
-    """QDfunctions that checks if the qd and the associated pulse sequence generates a graph state. If it does,
+    """OldQDfunctions that checks if the qd and the associated pulse sequence generates a graph state. If it does,
     it also returns the graph state as a GraphState class element.
 
     :param list spin_gates_list: gates to be done on the QD after each round of photon generation.
