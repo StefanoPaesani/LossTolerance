@@ -208,7 +208,10 @@ def dict_to_tuples(this_dict):
 
 
 def tuples_to_dict(this_tuple):
-    return dict(zip(this_tuple[0], this_tuple[1]))
+    if len(this_tuple) == 0:
+        return dict()
+    else:
+        return dict(zip(this_tuple[0], this_tuple[1]))
 
 
 ### Converts syndromes_dicts into hashable tuples
@@ -247,13 +250,13 @@ if __name__ == '__main__':
     # graph = gen_tree_graph(branching)
     # gstate = GraphState(graph)
 
-    # ## fully connected graph
-    # graph = gen_fullyconnected_graph(4)
-    # gstate = GraphState(graph)
-
-    ### ring graph
-    graph = gen_ring_graph(5)
+    ## fully connected graph
+    graph = gen_fullyconnected_graph(4)
     gstate = GraphState(graph)
+
+    # ### ring graph
+    # graph = gen_ring_graph(5)
+    # gstate = GraphState(graph)
 
     ##############################################################
     ################## TEST FULL DECODER #########################
@@ -262,7 +265,7 @@ if __name__ == '__main__':
     plt.show()
 
     # decod0 = LT_FullDecoder(gstate, in_qubit)
-    decod0 = FullT_IndMeasDecoder(gstate, 'X', in_qubit)
+    decod0 = FullT_IndMeasDecoder(gstate, 'Y', in_qubit)
 
     succ_prob_poly_terms = get_FullTdecoder_succpob_treesearch(decod0)
 

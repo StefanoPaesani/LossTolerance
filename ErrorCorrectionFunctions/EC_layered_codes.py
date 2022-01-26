@@ -6,8 +6,11 @@ from ErrorCorrectionFunctions.EC_DecoderClasses import log_op_error_prob_from_lo
 
 def casc_errorrate_X(err_rates_XYZ, layer_ix, N_layers, code_lookup_x, code_lookup_y, code_lookup_z,
                      code_lookup_z_withinput):
-    if layer_ix == N_layers+1:
-        return 0
+    if layer_ix == N_layers:
+        if isinstance(err_rates_XYZ, list):
+            return err_rates_XYZ[0]
+        else:
+            return err_rates_XYZ
     else:
         err_rate_xi = casc_errorrate_X(err_rates_XYZ, layer_ix + 1, N_layers, code_lookup_x, code_lookup_y,
                                        code_lookup_z, code_lookup_z_withinput)
@@ -30,8 +33,10 @@ def casc_errorrate_X(err_rates_XYZ, layer_ix, N_layers, code_lookup_x, code_look
         if layer_ix == 0:
             return temp_p_x
         else:
-            p_x = e_x * (1 - temp_p_x) + temp_p_x * (1 - e_x)
-            p_y = e_y * (1 - temp_p_y) + temp_p_y * (1 - e_y)
+            # p_x = e_x * (1 - temp_p_x) + temp_p_x * (1 - e_x)
+            # p_y = e_y * (1 - temp_p_y) + temp_p_y * (1 - e_y)
+            p_x = e_x + temp_p_x - e_x * temp_p_x
+            p_y = e_y + temp_p_y - e_y * temp_p_y
             if layer_ix < N_layers:
                 return min(p_x, p_y)
             else:
@@ -40,8 +45,11 @@ def casc_errorrate_X(err_rates_XYZ, layer_ix, N_layers, code_lookup_x, code_look
 
 def casc_errorrate_Y(err_rates_XYZ, layer_ix, N_layers, code_lookup_x, code_lookup_y, code_lookup_z,
                      code_lookup_z_withinput):
-    if layer_ix == N_layers+1:
-        return 0
+    if layer_ix == N_layers:
+        if isinstance(err_rates_XYZ, list):
+            return err_rates_XYZ[1]
+        else:
+            return err_rates_XYZ
     else:
         err_rate_xi = casc_errorrate_X(err_rates_XYZ, layer_ix + 1, N_layers, code_lookup_x, code_lookup_y,
                                        code_lookup_z, code_lookup_z_withinput)
@@ -65,8 +73,10 @@ def casc_errorrate_Y(err_rates_XYZ, layer_ix, N_layers, code_lookup_x, code_look
         if layer_ix == 0:
             return temp_p_y
         else:
-            p_x = e_x * (1 - temp_p_x) + temp_p_x * (1 - e_x)
-            p_y = e_y * (1 - temp_p_y) + temp_p_y * (1 - e_y)
+            # p_x = e_x * (1 - temp_p_x) + temp_p_x * (1 - e_x)
+            # p_y = e_y * (1 - temp_p_y) + temp_p_y * (1 - e_y)
+            p_x = e_x + temp_p_x - e_x * temp_p_x
+            p_y = e_y + temp_p_y - e_y * temp_p_y
             if layer_ix < N_layers:
                 return min(p_x, p_y)
             else:
@@ -75,9 +85,7 @@ def casc_errorrate_Y(err_rates_XYZ, layer_ix, N_layers, code_lookup_x, code_look
 
 def casc_errorrate_Z(err_rates_XYZ, layer_ix, N_layers, code_lookup_x, code_lookup_y, code_lookup_z,
                      code_lookup_z_withinput):
-    if layer_ix == N_layers + 1:
-        return 0.
-    elif layer_ix == N_layers:
+    if layer_ix == N_layers:
         if isinstance(err_rates_XYZ, list):
             return err_rates_XYZ[2]
         else:

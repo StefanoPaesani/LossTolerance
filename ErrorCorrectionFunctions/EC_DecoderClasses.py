@@ -448,9 +448,14 @@ if __name__ == '__main__':
     # graph_edges = [(5, 4), (4, 3), (4, 0), (4, 2), (0, 3), (3, 2), (2, 1)]
     # gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
 
-    ### Generate random graph
-    graph = gen_random_connected_graph(6)
-    gstate = GraphState(graph)
+    ## Graph equivalent to L543021 with loss-tolerance
+    graph_nodes = list(range(6))
+    graph_edges = [(0,1), (1,2), (2,3), (3,4), (4,0), (1,5), (3, 6)]
+    gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
+
+    # ### Generate random graph
+    # graph = gen_random_connected_graph(6)
+    # gstate = GraphState(graph)
 
     ###############################################################################################
     ################################### PAULI MEASUREMENT - DECODING ##############################
@@ -495,8 +500,10 @@ if __name__ == '__main__':
 
     ##################################### Plots
 
-    error_vals = np.linspace(0, 1, 21)
+    error_vals = np.linspace(0, 0.15, 21)
     log_err_list_tele = [teleport_error_prob_from_lookup_dict(syndromes_probs_dict_full, x) for x in error_vals]
+    print(list(error_vals))
+    print(log_err_list_tele)
 
     plt.plot(error_vals, error_vals, 'k:', label='', )
     plt.plot(error_vals, log_err_list_tele, 'r', label='Full decoder', linewidth=2)
