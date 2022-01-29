@@ -21,7 +21,10 @@ def get_LTdecoder_succpob_treesearch(LTdecoder, poss_meas_outcomes=None):
             # print()
             # print('Looking at decoder with meas_config', this_dec.meas_config)
             # print('its strat list is', this_dec.poss_strat_list)
-            # print('its meas status is', this_dec.mXY_XY_qbts, this_dec.mXY_Z_qbts, this_dec.mXY_na_qbts, this_dec.mZ_Z_qbts, this_dec.mZ_na_qbts)
+            # print('its meas status is', this_dec.mOUT_OUT_qbts, this_dec.mOUT_Z_qbts, this_dec.mOUT_na_qbts,
+            #       this_dec.mX_X_qbts, this_dec.mX_Z_qbts, this_dec.mX_na_qbts,
+            #       this_dec.mY_Y_qbts, this_dec.mY_Z_qbts, this_dec.mY_na_qbts,
+            #       this_dec.mZ_Z_qbts, this_dec.mZ_na_qbts,)
             # print('its finished status is', this_dec.finished)
 
             # if there are no possible measurement to do, we have failed and we stop
@@ -120,15 +123,15 @@ if __name__ == '__main__':
     # gstate = GraphState(graph)
 
     ### ring graph
-    graph = gen_ring_graph(3)
+    graph = gen_ring_graph(4)
     gstate = GraphState(graph)
 
     ##############################################################
     ################## TEST FULL DECODER #########################
     ##############################################################
 
-    # decod0 = LT_FullDecoder(gstate, in_qubit)
-    decod0 = LT_IndMeasDecoder(gstate, 'Y', in_qubit)
+    decod0 = LT_FullDecoder(gstate, in_qubit)
+    # decod0 = LT_IndMeasDecoder(gstate, 'Y', in_qubit)
 
     succ_prob_poly_terms = get_LTdecoder_succpob_treesearch(decod0)
 

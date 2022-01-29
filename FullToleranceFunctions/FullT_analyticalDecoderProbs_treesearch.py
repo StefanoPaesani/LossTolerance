@@ -23,17 +23,17 @@ def get_FullTdecoder_succpob_treesearch(decoder, poss_meas_outcomes=None,
         temp_run_decs = []
         temp_finish_decs = []
         for this_dec in list_running_decs:
-            print()
-            print('Looking at decoder with meas_config', this_dec.meas_config)
-            print('Needs new meas_config?', this_dec.new_strategy)
-            print('its strat list is', this_dec.poss_strat_list)
-            print('its meas status is', this_dec.mOUT_OUT, this_dec.mOUT_Z, this_dec.mOUT_na,
-                             this_dec.mX_X, this_dec.mX_Z, this_dec.mX_na,
-                             this_dec.mY_Y, this_dec.mY_Z, this_dec.mY_na,
-                             this_dec.mZ_Z, this_dec.mZ_na)
-            if this_dec.decoder_type == 'Teleport':
-                print('output status is:', this_dec.out_qubit_ix, this_dec.meas_out)
-            print('its finished status is', this_dec.finished)
+            # print()
+            # print('Looking at decoder with meas_config', this_dec.meas_config)
+            # print('Needs new meas_config?', this_dec.new_strategy)
+            # print('its strat list is', this_dec.poss_strat_list)
+            # print('its meas status is', this_dec.mOUT_OUT, this_dec.mOUT_Z, this_dec.mOUT_na,
+            #                  this_dec.mX_X, this_dec.mX_Z, this_dec.mX_na,
+            #                  this_dec.mY_Y, this_dec.mY_Z, this_dec.mY_na,
+            #                  this_dec.mZ_Z, this_dec.mZ_na)
+            # if this_dec.decoder_type == 'Teleport':
+            #     print('output status is:', this_dec.out_qubit_ix, this_dec.meas_out)
+            # print('its finished status is', this_dec.finished)
 
             # if there are no possible measurement to do, we have failed and we stop
             if not this_dec.poss_strat_list:
@@ -61,6 +61,7 @@ def get_FullTdecoder_succpob_treesearch(decoder, poss_meas_outcomes=None,
 
     ### Perform error-correction analysis on the decoders that succesffuly finished
     successful_decoders = [this_dec for this_dec in list_finished_decs if this_dec.on_track]
+
     if this_dec.decoder_type == 'IndMeas':
         succ_decs_syndromes_dicts = [
             calculate_syndromes_dictionary_single_ind_meas(this_dec.meas_config[0], this_dec.meas_config[1][0],
@@ -74,6 +75,17 @@ def get_FullTdecoder_succpob_treesearch(decoder, poss_meas_outcomes=None,
                                                     this_dec.meas_config[1][0][1][1], this_dec.meas_config[1][1],
                                                     this_dec.in_qubit, this_dec.meas_config[1][0][0],
                                                     max_error_num=max_error_num) for this_dec in successful_decoders]
+
+        # succ_decs_syndromes_dicts = []
+        # for this_dec in successful_decoders:
+        #     temp_lookout = calculate_syndromes_dictionary_teleport(this_dec.meas_config[0], this_dec.meas_config[1][0][1][0],
+        #                                             this_dec.meas_config[1][0][1][1], this_dec.meas_config[1][1],
+        #                                             this_dec.in_qubit, this_dec.meas_config[1][0][0],
+        #                                             max_error_num=max_error_num)
+        #     succ_decs_syndromes_dicts.append(temp_lookout)
+        #     print('\nmeas:',this_dec.meas_config[0], 'outqbt', this_dec.meas_config[1][0][0], 'stab1:',this_dec.meas_config[1][0][1][0], 'stab2:',this_dec.meas_config[1][0][1][1], 'EC stabs:', this_dec.meas_config[1][1])
+        #     print('lookout table:', temp_lookout)
+
     else:
         raise ValueError("decoder_type can only be in ['IndMeas', 'Teleport']")
 
@@ -96,22 +108,66 @@ def get_FullTdecoder_succpob_treesearch(decoder, poss_meas_outcomes=None,
 ###   PROBABILITIES CALCULATIONS   ###
 ######################################
 
-#### Loss-tolerance part
-def success_prob_from_poly_expr(t, poly_term, t_xi=1, t_yi=1, t_zi=0, t_out=None):
+### Loss-tolerance part
+def success_prob_from_poly_expr(t, poly_term, t_xi=1, t_yi=1, t_zi=0, t_out=None, t_zdir=None):
     if t_out == None:
         t_out = max(t_xi, t_yi)
+    if t_zdir == None:
+        t_zdir = t
     return ((t * t_out) ** poly_term[0]) * \
            (((1 - t) * t_zi) ** poly_term[1]) * \
-           (((1 - t) * (1 - t_zi) + t * (1 - t_out)) ** poly_term[2]) * \
+           ((1 - (t * t_out) - ((1 - t) * t_zi)) ** poly_term[2]) * \
            ((t * t_xi) ** poly_term[3]) * \
            (((1 - t) * t_zi) ** poly_term[4]) * \
-           (((1 - t) * (1 - t_zi) + t * (1 - t_xi)) ** poly_term[5]) * \
+           ((1 - (t * t_xi) - ((1 - t) * t_zi)) ** poly_term[5]) * \
            ((t * t_yi) ** poly_term[6]) * \
            (((1 - t) * t_zi) ** poly_term[7]) * \
-           (((1 - t) * (1 - t_zi) + t * (1 - t_yi)) ** poly_term[8]) * \
-           ((t * (1 - t_zi) + t_zi * (1 - t) + t_zi * t) ** poly_term[9]) * \
-           ((1 - t - (1 - t) * t_zi) ** poly_term[10])
+           ((1 - (t * t_yi) - ((1 - t) * t_zi)) ** poly_term[8]) * \
+           ((t_zdir * (1 - t_zi) + t_zi * (1 - t_zdir) + t_zi * t_zdir) ** poly_term[9]) * \
+           ((1 - t_zdir - (1 - t_zdir) * t_zi) ** poly_term[10])
 
+
+# def success_prob_from_poly_expr(t, poly_term, t_xi=1, t_yi=1, t_zi=0, t_out=None, t_zdir=None):
+#     if t_out == None:
+#         t_out = max(t_xi, t_yi)
+#     if t_zdir == None:
+#         t_zdir = t
+#     temp_prob = 1
+#     this_prob = ((t * t_out) ** poly_term[0])
+#     temp_prob *= this_prob
+#     # print('termo 0', temp_asd, ' totprob', asd)
+#     this_prob = (((1 - t) * t_zi) ** poly_term[1])
+#     temp_prob *= this_prob
+#     # print('termo 1', temp_asd, ' totprob', asd)
+#     this_prob = ((1 - (t * t_out) - ((1 - t) * t_zi)) ** poly_term[2])
+#     temp_prob *= this_prob
+#     # print('termo 2', temp_asd, ' totprob', asd)
+#     this_prob = ((t * t_xi) ** poly_term[3])
+#     temp_prob *= this_prob
+#     # print('termo 3', temp_asd, ' totprob', asd)
+#     this_prob = (((1 - t) * t_zi) ** poly_term[4])
+#     temp_prob *= this_prob
+#     # print('termo 4', temp_asd, ' totprob', asd)
+#     this_prob = ((1 - (t * t_xi) - ((1 - t) * t_zi)) ** poly_term[5])
+#     temp_prob *= this_prob
+#     # print('termo 5', temp_asd, ' totprob', asd)
+#     this_prob = ((t * t_yi) ** poly_term[6])
+#     temp_prob *= this_prob
+#     # print('termo 6', temp_asd, ' totprob', asd)
+#     this_prob = (((1 - t) * t_zi) ** poly_term[7])
+#     temp_prob *= this_prob
+#     # print('termo 7', temp_asd, ' totprob', asd)
+#     this_prob = ((1 - (t * t_yi) - ((1 - t) * t_zi)) ** poly_term[8])
+#     temp_prob *= this_prob
+#     # print('termo 8', temp_asd, ' totprob', asd)
+#     this_prob = ((t_zdir * (1 - t_zi) + t_zi * (1 - t_zdir) + t_zi * t_zdir) ** poly_term[9])
+#     temp_prob *= this_prob
+#     # print('termo 9', temp_asd, ' totprob', asd)
+#     this_prob = ((1 - t_zdir - (1 - t_zdir) * t_zi) ** poly_term[10])
+#     temp_prob *= this_prob
+#     # print('termo 10', temp_asd, ' totprob', asd)
+#     # print('prob', asd, 'for poly_term', poly_term, ' with t_xi', t_xi, 't_yi', t_yi, 't_zi', t_zi, 't', t)
+#     return temp_prob
 
 #### Error-correction part
 
@@ -189,26 +245,30 @@ def error_prob_from_lookup_dict(lookup_dict, err_prob_X, err_prob_Y=None, err_pr
 # [(error prob given syndr1 and M1, proability to measure syndr1 given M1), ... for all syndromes given M1])
 # , ... for all measurements]
 def prob_structure_from_decoder_analytical_output(analyt_dec_output, t, err_prob_X, err_prob_Y=None, err_prob_Z=None,
-                                                  t_xi=1, t_yi=1, t_zi=0, t_out=None, num_prob_thresh=1e-12):
+                                                  t_xi=1, t_yi=1, t_zi=0, t_out=None, t_zdir=None, num_prob_thresh=1e-12):
     return [(analyt_dec_output[term] * success_prob_from_poly_expr(t, term[0], t_xi=t_xi, t_yi=t_yi, t_zi=t_zi,
-                                                                   t_out=t_out),
+                                                                   t_out=t_out, t_zdir=t_zdir),
              error_prob_from_lookup_dict(tuples_to_syndromes_dict(term[1]), err_prob_X, err_prob_Y=err_prob_Y,
                                          err_prob_Z=err_prob_Z, num_prob_thresh=num_prob_thresh)) for term in
             analyt_dec_output]
 
 
 def transm_and_err_prob_from_prob_struct(prob_struct):
+    # print('prob_struct', prob_struct)
     transm_prob = sum((x[0] * sum((y[1] for y in x[1])) for x in prob_struct))
-    error_prob = sum((x[0] * sum((y[0] * y[1] for y in x[1])) for x in prob_struct)) / transm_prob
+    if transm_prob > 0.:
+        error_prob = sum((x[0] * sum((y[0] * y[1] for y in x[1])) for x in prob_struct)) / transm_prob
+    else:
+        error_prob = 0.
     return transm_prob, error_prob
 
 
 def code_probs_from_decoder_output(analyt_dec_output, t, err_prob_X, err_prob_Y=None, err_prob_Z=None,
-                                   t_xi=1, t_yi=1, t_zi=0, t_out=None, num_prob_thresh=1e-12):
+                                   t_xi=1, t_yi=1, t_zi=0, t_out=None, t_zdir=None, num_prob_thresh=1e-12):
     return transm_and_err_prob_from_prob_struct(
         prob_structure_from_decoder_analytical_output(analyt_dec_output, t, err_prob_X=err_prob_X,
                                                       err_prob_Y=err_prob_Y, err_prob_Z=err_prob_Z, t_xi=t_xi,
-                                                      t_yi=t_yi, t_zi=t_zi, t_out=t_out,
+                                                      t_yi=t_yi, t_zi=t_zi, t_out=t_out, t_zdir=t_zdir,
                                                       num_prob_thresh=num_prob_thresh))
 
 
@@ -270,7 +330,7 @@ if __name__ == '__main__':
     # gstate = GraphState(graph)
 
     ### ring graph
-    graph = gen_ring_graph(3)
+    graph = gen_ring_graph(4)
     gstate = GraphState(graph)
 
     # ### star graph
@@ -302,7 +362,7 @@ if __name__ == '__main__':
     print(tidyup_succ_prob_poly_terms(succ_prob_poly_terms))
 
     transm = 0.9
-    error_prob = 0.1
+    error_prob = 0.
 
     prob_struct = prob_structure_from_decoder_analytical_output(succ_prob_poly_terms, transm, error_prob)
     print(prob_struct)

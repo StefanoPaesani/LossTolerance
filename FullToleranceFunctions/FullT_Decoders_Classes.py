@@ -165,16 +165,18 @@ class FullT_IndMeasDecoder(object):
     ###### Strategy decisions functions
 
     def decide_new_strat(self):
-        # get strategies with minimal logical operator weight (from LT decoders)
-        min_weight = min([self.poss_strat_list[x][2] for x in self.poss_strat_list])
-        temp_strats = dict((k, self.poss_strat_list[k]) for k in self.poss_strat_list
-                           if self.poss_strat_list[k][2] == min_weight)
-        # between the selected strategies, get the one with maximal number of syndrome stabilizers, considering also
-        # a preferred Pauli basis (from EC decoders).
-        best_meas = max(temp_strats, key=lambda x: len(self.poss_strat_list[x][1]) + (
+        # Get strategies with maximal number of syndrome stabilizers, considering also a preferred Pauli basis (from
+        # EC decoders).
+        meas_fitness_func = lambda x: len(self.poss_strat_list[x][1]) + (
             0 if len(self.poss_strat_list[x][1]) == 0 else count_target_pauli_in_stabs(self.poss_strat_list[x][1],
                                                                                        self.pref_pauli) / (
-                                                                   self.n_qbts * len(self.poss_strat_list[x][1]))))
+                                                                       self.n_qbts * len(self.poss_strat_list[x][1])))
+
+        max_fit = max([meas_fitness_func(x) for x in self.poss_strat_list])
+        temp_strats = dict((k, self.poss_strat_list[k]) for k in self.poss_strat_list
+                           if meas_fitness_func(k) == max_fit)
+        # get strategies with minal measurement weight (from LT decoders)
+        best_meas = min(temp_strats, key=lambda x: temp_strats[x][2])
         self.meas_config = (best_meas, temp_strats[best_meas])
         self.new_strategy = False
 
@@ -389,7 +391,7 @@ class FullT_TeleportationDecoder(object):
                 anticomm_qbts = [qbt for qbt in range(self.n_qbts) if single_qubit_commute(stab1, stab2, qbt)]
                 # print()
                 # print(stab_ix1, stab1, stab_ix2, stab2, anticomm_qbts)
-                ## checks that there are exactly two qubits with anticommuting Paulis: the input and an output
+                # checks that there are exactly two qubits with anticommuting Paulis: the input and an output
                 if len(anticomm_qbts) == 2 and self.in_qubit in anticomm_qbts:
                     out_qubit = [x for x in anticomm_qbts if x != self.in_qubit][0]
                     compatible_stabs = filter_stabs_given_qubits_ops(all_stabs,
@@ -401,19 +403,17 @@ class FullT_TeleportationDecoder(object):
                                                                           dict(zip(non_inout_qubits, non_inout_paulis)))
                     # print('good inout, compatible_stabs:', compatible_stabs)
 
-                    tele_strat_weight = self.n_qbts - non_inout_paulis.count('I')
-                    tele_strat_prefpauli_weight = non_inout_paulis.count(self.pref_pauli) / (tele_strat_weight + 1)
-                    tele_strat_val = tele_strat_weight - tele_strat_prefpauli_weight
-
-                    poss_ops_list = [['I'] if ix in anticomm_qbts else [] for ix in range(self.n_qbts)]
+                    poss_ops_list = [['I'] if (ix in anticomm_qbts) else [] for ix in range(self.n_qbts)]
                     free_qubits = []
                     for ix in range(self.n_qbts):
                         if ix not in anticomm_qbts:
                             if (stab1[ix] != 'I' or stab2[ix] != 'I'):
                                 poss_ops_list[ix] = [stab1[ix] if stab1[ix] != 'I' else stab2[ix]]
                             else:
+                                poss_ops_list[ix] = ['I']
                                 free_qubits.append(ix)
                     # print('free_qubits', free_qubits)
+
                     for this_stab in compatible_stabs:
                         for ix, this_op in enumerate(this_stab):
                             if ix in free_qubits:
@@ -421,11 +421,18 @@ class FullT_TeleportationDecoder(object):
                                     poss_ops_list[ix].append(this_op)
                     # print('poss_ops_list', poss_ops_list)
                     this_strat_all_meas = (''.join(ops) for ops in product(*poss_ops_list))
+
                     # this_strat_all_meas = list(this_strat_all_meas)
                     # print(this_strat_all_meas)
+
                     for this_meas in this_strat_all_meas:
                         meas_comp_stabs = filter_stabs_measurement_compatible(compatible_stabs, this_meas)
                         ## Uses these stabilizers for this measurement if this_meas is not already included
+
+                        tele_strat_weight = self.n_qbts - this_meas.count('I')
+                        tele_strat_prefpauli_weight = this_meas.count(self.pref_pauli) / (tele_strat_weight + 1)
+                        tele_strat_val = tele_strat_weight - tele_strat_prefpauli_weight
+
                         if this_meas not in all_meas:
                             all_meas[this_meas] = (
                                 (out_qubit, (stab1, stab2)), meas_comp_stabs, tele_strat_val)
@@ -451,16 +458,19 @@ class FullT_TeleportationDecoder(object):
         if len(looked_strats) == 0:
             looked_strats = self.poss_strat_list
             self.meas_out = False
-        # get strategies with minimal logical operator weight (from LT decoders)
-        min_weight = min([looked_strats[x][2] for x in looked_strats])
-        temp_strats = dict((k, looked_strats[k]) for k in looked_strats
-                           if looked_strats[k][2] == min_weight)
-        # between the selected strategies, get the one with maximal number of syndrome stabilizers, considering also
-        # a preferred Pauli basis (from EC decoders).
-        best_meas = max(temp_strats, key=lambda x: len(self.poss_strat_list[x][1]) + (
+
+        # Get strategies with maximal number of syndrome stabilizers, considering also a preferred Pauli basis (from
+        # EC decoders).
+        meas_fitness_func = lambda x: len(self.poss_strat_list[x][1]) + (
             0 if len(self.poss_strat_list[x][1]) == 0 else count_target_pauli_in_stabs(self.poss_strat_list[x][1],
                                                                                        self.pref_pauli) / (
-                                                                   self.n_qbts * len(self.poss_strat_list[x][1]))))
+                                                                       self.n_qbts * len(self.poss_strat_list[x][1])))
+        max_fit = max([meas_fitness_func(x) for x in looked_strats])
+        temp_strats = dict((k, looked_strats[k]) for k in looked_strats
+                           if meas_fitness_func(k) == max_fit)
+        # get strategies with minal measurement weight (from LT decoders)
+        best_meas = min(temp_strats, key=lambda x: temp_strats[x][2])
+
         chosen_strat = temp_strats[best_meas]
         if not self.meas_out:
             self.out_qubit_ix = chosen_strat[0][0]
@@ -647,14 +657,14 @@ if __name__ == '__main__':
     # graph = gen_fullyconnected_graph(4)
     # gstate = GraphState(graph)
 
-    # ### ring graph
-    # graph = gen_ring_graph(5)
-    # gstate = GraphState(graph)
+    ### ring graph
+    graph = gen_ring_graph(4)
+    gstate = GraphState(graph)
 
-    ## Graph equivalent to L543021 with loss-tolerance
-    graph_nodes = list(range(6))
-    graph_edges = [(0,1), (1,2), (2,3), (3,4), (4,0), (1,5), (3, 6)]
-    gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
+    # ## Graph equivalent to L543021 with loss-tolerance
+    # graph_nodes = list(range(6))
+    # graph_edges = [(0,1), (1,2), (2,3), (3,4), (4,0), (1,5), (3, 6)]
+    # gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
 
     # ### Generate random graph
     # graph = gen_random_connected_graph(6)
@@ -683,4 +693,4 @@ if __name__ == '__main__':
     # print(IndMeas_decoder.meas_config, IndMeas_decoder.new_strategy)
 
     Decoder.decide_next_meas()
-    Decoder.decide_next_meas()
+    # Decoder.decide_next_meas()

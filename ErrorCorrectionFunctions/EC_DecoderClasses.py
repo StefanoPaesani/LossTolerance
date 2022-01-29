@@ -248,7 +248,7 @@ def calculate_syndromes_dictionary_single_ind_meas(measurement, log_op, syndr_st
 # {syndrome: {0: prob_struct_coeffs_dict_for_not_flipped, 1: prob_struct_coeffs_dict_for_flipped}, ...}
 def calculate_syndromes_dictionary_teleport(measurement, log_op1, log_op2, syndr_stabs_list, input_qubit, out_qubit,
                                             max_error_num=None):
-    qbts_indices = [i for i, _ in enumerate(measurement) if i not in [input_qubit, out_qubit]]
+    qbts_indices = [i for i, op in enumerate(measurement) if ((i not in [input_qubit, out_qubit]) and op != 'I')]
     # print('qbts_indices', qbts_indices)
     stabs_for_decoder = syndr_stabs_list
     if max_error_num is None:

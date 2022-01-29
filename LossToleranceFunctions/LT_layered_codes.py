@@ -225,8 +225,12 @@ if __name__ == '__main__':
     # graph = gen_fullyconnected_graph(7)
     # gstate = GraphState(graph)
 
-    ## ring graph
-    graph = gen_ring_graph(5)
+    # ## ring graph
+    # graph = gen_ring_graph(5)
+    # gstate = GraphState(graph)
+
+    ### star graph
+    graph = gen_star_graph(4)
     gstate = GraphState(graph)
 
     #################################################################
@@ -259,7 +263,7 @@ if __name__ == '__main__':
     #
     # t_list = np.linspace(0, 1, 30)
     #
-    # num_layers_list = [0, 1]
+    # num_layers_list = [1, 2, 3, 4]
     # # num_layers_list = [0, 1, 2, 3, 4, 5]
     # # num_layers_list = [0, 1, 2, 15]
     #
@@ -283,20 +287,24 @@ if __name__ == '__main__':
     ################ TESTS CONCATENATED CODES #######################
     #################################################################
 
-    ############### Plots
+    # ############### Plots
     gstate.image(input_qubits=[in_qubit])
     plt.show()
 
     t_list = np.linspace(0, 1, 30)
 
-    num_layers_list = [0, 1, 2, 3, 4, 5]
+    num_layers_list = [1, 2, 3, 4]
     # num_layers_list = [0, 1, 2, 15]
+
 
     plt.plot(t_list, t_list, 'k:', label='Direct')
     for N_layers in num_layers_list:
         this_code_prob_list = [
             conc_prob_full(t, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z, N_layers)
             for t in t_list]
+        # this_code_prob_list = [
+        #     conc_prob_X(t, 0, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z)
+        #     for t in t_list]
         plt.plot(t_list, this_code_prob_list, label=str(N_layers))
 
     ## code with t_xyi=t_zi=1
