@@ -127,17 +127,16 @@ def conc_prob_out(t, layer_ix, N_layers, code_prob_expr_full, code_prob_expr_x, 
             return probsucc_poly_fromexpress_conc(t_out, t_xi, t_yi, t_zi, code_prob_expr_full[layer_ix - 1])
 
 
-def conc_prob_X(t, layer_ix, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z):
+def conc_prob_X(t, layer_ix, N_layers, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z):
     if layer_ix == N_layers:
         return t
     else:
-        t_out = conc_prob_out(t, layer_ix + 1, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y,
-                              code_prob_expr_z)
-        t_xi = conc_prob_X(t, layer_ix + 1, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y,
+        t_out = 1
+        t_xi = conc_prob_X(t, layer_ix + 1, N_layers, code_prob_expr_x, code_prob_expr_y,
                            code_prob_expr_z)
-        t_yi = conc_prob_Y(t, layer_ix + 1, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y,
+        t_yi = conc_prob_Y(t, layer_ix + 1, N_layers, code_prob_expr_x, code_prob_expr_y,
                            code_prob_expr_z)
-        t_zi = conc_prob_Z(t, layer_ix + 1, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y,
+        t_zi = conc_prob_Z(t, layer_ix + 1, N_layers, code_prob_expr_x, code_prob_expr_y,
                            code_prob_expr_z)
         if isinstance(code_prob_expr_x, dict):
             return probsucc_poly_fromexpress_conc(t_out, t_xi, t_yi, t_zi, code_prob_expr_x)
@@ -145,17 +144,16 @@ def conc_prob_X(t, layer_ix, N_layers, code_prob_expr_full, code_prob_expr_x, co
             return probsucc_poly_fromexpress_conc(t_out, t_xi, t_yi, t_zi, code_prob_expr_x[layer_ix - 1])
 
 
-def conc_prob_Y(t, layer_ix, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z):
+def conc_prob_Y(t, layer_ix, N_layers, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z):
     if layer_ix == N_layers:
         return t
     else:
-        t_out = conc_prob_out(t, layer_ix + 1, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y,
-                              code_prob_expr_z)
-        t_xi = conc_prob_X(t, layer_ix + 1, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y,
+        t_out = 1
+        t_xi = conc_prob_X(t, layer_ix + 1, N_layers, code_prob_expr_x, code_prob_expr_y,
                            code_prob_expr_z)
-        t_yi = conc_prob_Y(t, layer_ix + 1, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y,
+        t_yi = conc_prob_Y(t, layer_ix + 1, N_layers, code_prob_expr_x, code_prob_expr_y,
                            code_prob_expr_z)
-        t_zi = conc_prob_Z(t, layer_ix + 1, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y,
+        t_zi = conc_prob_Z(t, layer_ix + 1, N_layers, code_prob_expr_x, code_prob_expr_y,
                            code_prob_expr_z)
         if isinstance(code_prob_expr_y, dict):
             return probsucc_poly_fromexpress_conc(t_out, t_xi, t_yi, t_zi, code_prob_expr_y)
@@ -163,17 +161,16 @@ def conc_prob_Y(t, layer_ix, N_layers, code_prob_expr_full, code_prob_expr_x, co
             return probsucc_poly_fromexpress_conc(t_out, t_xi, t_yi, t_zi, code_prob_expr_y[layer_ix - 1])
 
 
-def conc_prob_Z(t, layer_ix, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z):
+def conc_prob_Z(t, layer_ix, N_layers, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z):
     if layer_ix == N_layers:
         return t
     else:
-        t_out = conc_prob_out(t, layer_ix + 1, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y,
-                              code_prob_expr_z)
-        t_xi = conc_prob_X(t, layer_ix + 1, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y,
+        t_out = 1
+        t_xi = conc_prob_X(t, layer_ix + 1, N_layers, code_prob_expr_x, code_prob_expr_y,
                            code_prob_expr_z)
-        t_yi = conc_prob_Y(t, layer_ix + 1, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y,
+        t_yi = conc_prob_Y(t, layer_ix + 1, N_layers, code_prob_expr_x, code_prob_expr_y,
                            code_prob_expr_z)
-        t_zi = conc_prob_Z(t, layer_ix + 1, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y,
+        t_zi = conc_prob_Z(t, layer_ix + 1, N_layers, code_prob_expr_x, code_prob_expr_y,
                            code_prob_expr_z)
         if isinstance(code_prob_expr_z, dict):
             return probsucc_poly_fromexpress_conc(t_out, t_xi, t_yi, t_zi, code_prob_expr_z)
@@ -230,7 +227,7 @@ if __name__ == '__main__':
     # gstate = GraphState(graph)
 
     ### star graph
-    graph = gen_star_graph(4)
+    graph = gen_star_graph(3)
     gstate = GraphState(graph)
 
     #################################################################
@@ -269,8 +266,11 @@ if __name__ == '__main__':
     #
     # plt.plot(t_list, t_list, 'k:', label='Direct')
     # for N_layers in num_layers_list:
+    #     # this_code_prob_list = [
+    #     #     cascade_prob_full(t, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z, N_layers)
+    #     #     for t in t_list]
     #     this_code_prob_list = [
-    #         cascade_prob_full(t, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z, N_layers)
+    #         cascade_prob_Z(t, 0, N_layers, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z)
     #         for t in t_list]
     #     plt.plot(t_list, this_code_prob_list, label=str(N_layers))
     #
@@ -299,12 +299,12 @@ if __name__ == '__main__':
 
     plt.plot(t_list, t_list, 'k:', label='Direct')
     for N_layers in num_layers_list:
-        this_code_prob_list = [
-            conc_prob_full(t, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z, N_layers)
-            for t in t_list]
         # this_code_prob_list = [
-        #     conc_prob_X(t, 0, N_layers, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z)
+        #     conc_prob_full(t, code_prob_expr_full, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z, N_layers)
         #     for t in t_list]
+        this_code_prob_list = [
+            conc_prob_X(t, 0, N_layers, code_prob_expr_x, code_prob_expr_y, code_prob_expr_z)
+            for t in t_list]
         plt.plot(t_list, this_code_prob_list, label=str(N_layers))
 
     ## code with t_xyi=t_zi=1

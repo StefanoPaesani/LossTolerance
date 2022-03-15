@@ -118,20 +118,25 @@ if __name__ == '__main__':
     # graph = gen_tree_graph(branching)
     # gstate = GraphState(graph)
 
-    ### fully connected graph
-    # graph = gen_fullyconnected_graph(7)
+    ## fully connected graph
+    graph = gen_fullyconnected_graph(7)
+    gstate = GraphState(graph)
+
+    # ### ring graph
+    # graph = gen_ring_graph(4)
     # gstate = GraphState(graph)
 
-    ### ring graph
-    graph = gen_ring_graph(4)
-    gstate = GraphState(graph)
+    # # ## Two-level Tree graph [2 ,2]
+    # graph_nodes = list(range(6))
+    # graph_edges = [(0, 1), (0, 2), (1, 3), (1, 4), (2, 5), (2, 6)]
+    # gstate = graphstate_from_nodes_and_edges(graph_nodes, graph_edges)
 
     ##############################################################
     ################## TEST FULL DECODER #########################
     ##############################################################
 
-    decod0 = LT_FullDecoder(gstate, in_qubit)
-    # decod0 = LT_IndMeasDecoder(gstate, 'Y', in_qubit)
+    # decod0 = LT_FullDecoder(gstate, in_qubit)
+    decod0 = LT_IndMeasDecoder(gstate, 'X', in_qubit)
 
     succ_prob_poly_terms = get_LTdecoder_succpob_treesearch(decod0)
 
